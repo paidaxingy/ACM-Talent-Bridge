@@ -1,0 +1,74 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: acm_bridge
+      MYSQL_USER: acm
+      MYSQL_PASSWORD: acm_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    command: ["--default-authentication-plugin=mysql_native_password", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      - mysql
+      - redis
+    # 判题 worker 需要对挂载的 /judge_workspace 有写权限，开发环境下直接用 root 简化权限问题
+    user: "0:0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - judge_workspace:/judge_workspace
+    command: ["celery", "-A", "app.core.celery_app:celery", "worker", "-l", "INFO"]
+
+  beat:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      - mysql
+      - redis
+    command: ["celery", "-A", "app.core.celery_app:celery", "beat", "-l", "INFO"]
+
+volumes:
+  mysql_data:
+  judge_workspace:
+    # 关键：显式指定真实 volume 名称，避免 docker compose 自动加项目名前缀，
+    # 导致 worker 写入的卷名与 docker SDK (judge_docker.py) 挂载的卷名不一致。
+    name: judge_workspace

@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
+
+from app.core.db import get_db
+from app.core.deps import get_current_user
+from app.models.team import Team, TeamMember
+from app.models.user import User
+from app.models.member import Member
+from app.models.contest import ContestTeamRegistration
+from app.schemas.profile import MemberAbilityProfileOut
+from app.schemas.team import TeamMemberOut, TeamOut
+from app.services.ability_profile import compute_ability_profile
+
+router = APIRouter(prefix="/me")
+
+
+@router.get("/profile", response_model=MemberAbilityProfileOut)
+def my_profile(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    基于当前登录用户的用户名，查找同名成员（handle = username），并返回能力画像。
+    前置条件：管理员在“成员管理”中为该用户名创建了对应的 member 记录。
+    """
+    member = (
+      db.execute(
+          select(Member).where(Member.handle == user.username)
+      )
+      .scalars()
+      .first()
+    )
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found for current user")
+
+    p = compute_ability_profile(db, member.id)
+    s = p.summary
+    return MemberAbilityProfileOut(
+        member_id=s.member_id,
+        handle=s.handle,
+        rating=s.rating,
+        tier=s.tier,
+        group_name=s.group_name,
+        pk_total=s.pk_total,
+        pk_wins=s.pk_wins,
+        pk_losses=s.pk_losses,
+        pk_draws=s.pk_draws,
+        submissions_total=s.submissions_total,
+        submissions_ac=s.submissions_ac,
+        contests_registered=s.contests_registered,
+        interview_avg_score=p.interview_avg_score,
+        rating_trend_last10=p.rating_trend_last10,
+        competitive_strength=p.competitive_strength,
+        consistency=p.consistency,
+        communication=p.communication,
+        problem_solving=p.problem_solving,
+        recommended_directions=p.recommended_directions,
+        improvement_plan=p.improvement_plan,
+    )
+
+
+@router.get("/teams", response_model=list[TeamOut])
+def my_teams(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    teams = (
+        db.execute(
+            select(Team)
+            .join(TeamMember, TeamMember.team_id == Team.id)
+            .options(selectinload(Team.members).selectinload(TeamMember.user))
+            .where(TeamMember.user_id == user.id)
+            .order_by(Team.id.desc())
+        )
+        .scalars()
+        .all()
+    )
+
+    return [
+        TeamOut(
+            team_id=t.id,
+            team_name=t.name,
+            team_members=[
+                TeamMemberOut(
+                    user_id=tm.user_id,
+                    username=tm.user.username if tm.user else "",
+                    joined_at=tm.joined_at,
+                )
+                for tm in (t.members or [])
+            ],
+        )
+        for t in teams
+    ]
+
+
+@router.get("/contests/{contest_id}/active_team")
+def my_active_team_for_contest(
+    contest_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    查询当前用户在某场比赛中报名的队伍（若有）。
+    """
+    reg = (
+        db.execute(
+            select(ContestTeamRegistration)
+            .join(Team, Team.id == ContestTeamRegistration.team_id)
+            .join(TeamMember, TeamMember.team_id == Team.id)
+            .where(ContestTeamRegistration.contest_id == contest_id)
+            .where(TeamMember.user_id == user.id)
+        )
+        .scalars()
+        .first()
+    )
+    if not reg:
+        return {"team_id": None, "team_name": None}
+
+    team = db.get(Team, reg.team_id)
+    return {"team_id": team.id if team else reg.team_id, "team_name": team.name if team else None}
+
