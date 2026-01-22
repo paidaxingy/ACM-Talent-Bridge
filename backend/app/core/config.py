@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     ai_base_url: str | None = None
     ai_model: str = "gpt-4o-mini"
 
+    # Resumes
+    resumes_dir: str = "resumes"
+
     model_config = SettingsConfigDict(
         env_file=(".env",),
         env_file_encoding="utf-8",

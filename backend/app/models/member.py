@@ -33,6 +33,10 @@ class Member(Base):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Resume
+    resume_filename: Mapped[str | None] = mapped_column(String(256), default=None)
+    resume_url: Mapped[str | None] = mapped_column(String(512), default=None)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

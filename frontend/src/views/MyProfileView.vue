@@ -22,6 +22,26 @@
                 <el-descriptions-item label="梯队">{{ profile.tier }}</el-descriptions-item>
                 <el-descriptions-item label="分组">{{ profile.group_name || '-' }}</el-descriptions-item>
               </el-descriptions>
+              <div class="resume-section">
+                <div class="block-title" style="margin-top: 12px">简历</div>
+                <el-upload
+                  v-if="!resumeUrl"
+                  action=""
+                  :auto-upload="false"
+                  :show-file-list="false"
+                  accept=".pdf,.doc,.docx"
+                  :on-change="handleResumeChange"
+                >
+                  <el-button size="small">上传简历</el-button>
+                  <template #tip>
+                    <div class="el-upload__tip" style="font-size: 12px; color: #909399">支持 PDF/DOC/DOCX</div>
+                  </template>
+                </el-upload>
+                <div v-else style="display: flex; gap: 8px; align-items: center">
+                  <el-button size="small" type="success" @click="previewResume">查看简历</el-button>
+                  <el-button size="small" type="danger" :loading="deleting" @click="deleteResume">删除</el-button>
+                </div>
+              </div>
             </el-card>
           </el-col>
 
@@ -111,8 +131,8 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { api } from '../api/client'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { api, apiBaseUrl } from '../api/client'
 
 interface Profile {
   member_id: number
@@ -139,6 +159,9 @@ interface Profile {
 
 const profile = ref<Profile | null>(null)
 const loading = ref(false)
+const uploading = ref(false)
+const deleting = ref(false)
+const resumeUrl = ref<string | null>(null)
 const route = useRoute()
 let refreshTimer: number | null = null
 
@@ -161,9 +184,69 @@ async function load() {
   }
 }
 
+async function loadResume() {
+  try {
+    const { data } = await api.get('/me/resume')
+    resumeUrl.value = data.url
+  } catch (e) {
+    resumeUrl.value = null
+  }
+}
+
+async function handleResumeChange(file: any) {
+  const rawFile = file.raw
+  if (!rawFile) return
+
+  const isValid = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(rawFile.type)
+  if (!isValid) {
+    ElMessage.error('只支持 PDF/DOC/DOCX 格式')
+    return
+  }
+
+  uploading.value = true
+  const formData = new FormData()
+  formData.append('file', rawFile)
+  try {
+    await api.post('/me/resume', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    await loadResume()
+    ElMessage.success('上传成功')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+async function deleteResume() {
+  try {
+    await ElMessageBox.confirm('确定删除简历？', '提示', { type: 'warning' })
+  } catch {
+    return
+  }
+
+  deleting.value = true
+  try {
+    await api.delete('/me/resume')
+    resumeUrl.value = null
+    ElMessage.success('已删除')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '删除失败')
+  } finally {
+    deleting.value = false
+  }
+}
+
+function previewResume() {
+  if (resumeUrl.value) {
+    const baseUrl = apiBaseUrl()
+    window.open(baseUrl + resumeUrl.value, '_blank')
+  }
+}
+
 // 自动刷新：每30秒刷新一次（仅自己的主页）
 onMounted(() => {
   load()
+  loadResume()
   if (!route.params.memberId) {
     // 只有查看自己的主页时才自动刷新
     refreshTimer = window.setInterval(() => {
@@ -228,6 +311,10 @@ onBeforeUnmount(() => {
   text-align: center;
   font-size: 13px;
   color: var(--el-text-color-secondary);
+}
+
+.resume-section {
+  margin-top: 12px;
 }
 </style>
 

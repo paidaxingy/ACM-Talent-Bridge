@@ -12,6 +12,7 @@ from app.api.routes.external_contests import router as external_contests_router
 from app.api.routes.ai_interviews import router as ai_interviews_router
 from app.api.routes.teams import router as teams_router
 from app.api.routes.me import router as me_router
+from app.api.routes.resume import router as resume_router
 
 api_router = APIRouter()
 api_router.include_router(health_router, tags=["health"])
@@ -24,6 +25,7 @@ api_router.include_router(contests_router, tags=["contests"])
 api_router.include_router(submissions_router, tags=["submissions"])
 api_router.include_router(teams_router, tags=["teams"])
 api_router.include_router(me_router, tags=["me"])
+api_router.include_router(resume_router, tags=["resume"])
 api_router.include_router(external_contests_router, tags=["external_contests"])
 api_router.include_router(ai_interviews_router, tags=["ai_interviews"])
 
