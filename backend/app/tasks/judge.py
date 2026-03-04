@@ -1,18 +1,76 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 
 from app.core.celery_app import celery
 from app.core.config import get_settings
 from app.core.db import SessionLocal
+from app.models.member import Member
+from app.models.pk import PKChallenge
 from app.models.problem import Problem
 from app.models.problem import Testcase
 from app.models.submission import Submission
 from app.schemas.submission import normalize_language
 from app.services.judge_docker import judge_in_docker
 from app.services.judge_local import judge_python3
+
+
+def now_beijing() -> datetime:
+    return datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+
+
+def _settle_pk_challenge(db: SessionLocal, submission: Submission):
+    if submission.verdict != "AC":
+        return
+
+    if not submission.member_id:
+        return
+
+    challenge = (
+        db.execute(
+            select(PKChallenge).where(
+                PKChallenge.status == "accepted",
+                PKChallenge.problem_id == submission.problem_id,
+                PKChallenge.started_at <= submission.judged_at,
+                or_(
+                    PKChallenge.challenger_member_id == submission.member_id,
+                    PKChallenge.challengee_member_id == submission.member_id,
+                ),
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if not challenge:
+        return
+
+    if submission.member_id == challenge.challenger_member_id:
+        winner_handle = challenge.challenger_handle
+    else:
+        winner_handle = challenge.challengee_handle
+
+    challenge.winner_handle = winner_handle
+    challenge.status = "finished"
+    challenge.finished_at = now_beijing()
+
+    if challenge.winner_handle == challenge.challenger_handle:
+        winner = challenge.challenger
+        loser = challenge.challengee
+    else:
+        winner = challenge.challengee
+        loser = challenge.challenger
+
+    if winner and loser:
+        from app.services.elo import expected_score
+        exp = expected_score(winner.rating, loser.rating)
+        k = 32
+        delta = int(k * (1 - exp))
+        winner.rating += delta
+        loser.rating -= delta
+    
+    db.commit()
 
 
 @celery.task(name="app.tasks.judge_submission")
@@ -74,7 +132,10 @@ def judge_submission(submission_id: int) -> dict:
         sub.time_ms = result.time_ms
         sub.memory_kb = result.memory_kb
         sub.message = result.message
-        sub.judged_at = datetime.utcnow()
+        sub.judged_at = now_beijing()
         db.commit()
+
+        _settle_pk_challenge(db, sub)
+
         return {"ok": True, "verdict": sub.verdict}
 

@@ -72,30 +72,36 @@ def create_submission(
             raise HTTPException(status_code=403, detail="Contest is not running")
 
     if payload.team_id is None:
-        raise HTTPException(status_code=422, detail="team_id required")
-
-    team = (
-        db.execute(select(Team).where(Team.id == payload.team_id))
-        .scalars()
-        .first()
-    )
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-
-    is_member = (
-        db.execute(
-            select(TeamMember)
-            .where(TeamMember.team_id == payload.team_id)
-            .where(TeamMember.user_id == user.id)
+        team_id = None
+    else:
+        team = (
+            db.execute(select(Team).where(Team.id == payload.team_id))
+            .scalars()
+            .first()
         )
-        .scalars()
-        .first()
-        is not None
-    )
-    if not is_member:
-        raise HTTPException(status_code=403, detail="Not a team member")
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
 
-    # 产品层已去掉 Lab：不再限制 team.lab_id 与 contest.lab_id 必须一致
+        is_member = (
+            db.execute(
+                select(TeamMember)
+                .where(TeamMember.team_id == payload.team_id)
+                .where(TeamMember.user_id == user.id)
+            )
+            .scalars()
+            .first()
+            is not None
+        )
+        if not is_member:
+            raise HTTPException(status_code=403, detail="Not a team member")
+        team_id = payload.team_id
+
+    if team_id is None:
+        if payload.contest_id is not None:
+            raise HTTPException(status_code=422, detail="team_id required for contest submissions")
+    else:
+        if payload.contest_id is not None and team_id != payload.team_id:
+            raise HTTPException(status_code=400, detail="team_id does not match contest")
 
     # 自动关联 member_id：根据 user.username 查找对应的 Member（handle = username）
     member_id = None
@@ -163,6 +169,11 @@ def list_submissions(
         .scalars()
         .all()
     )
+
+    for sub in subs:
+        if sub.member:
+            sub.handle = sub.member.handle
+
     return subs
 
 

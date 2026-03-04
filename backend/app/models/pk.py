@@ -53,3 +53,37 @@ class PKParticipant(Base):
 
     match = relationship("PKMatch", back_populates="participants")
 
+
+class PKChallenge(Base):
+    __tablename__ = "pk_challenges"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    challenger_member_id: Mapped[int] = mapped_column(ForeignKey("members.id"), index=True)
+    challengee_member_id: Mapped[int] = mapped_column(ForeignKey("members.id"), index=True)
+
+    challenger_handle: Mapped[str] = mapped_column(String(64), nullable=False)
+    challengee_handle: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    status: Mapped[str] = mapped_column(
+        String(16), default="pending"
+    )  # pending/accepted/rejected/cancelled/finished
+
+    problem_id: Mapped[int | None] = mapped_column(ForeignKey("problems.id"), index=True, default=None)
+
+    winner_handle: Mapped[str | None] = mapped_column(String(64), default=None)
+    is_draw: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    challenger = relationship("Member", foreign_keys=[challenger_member_id])
+    challengee = relationship("Member", foreign_keys=[challengee_member_id])
+    problem = relationship("Problem")
+

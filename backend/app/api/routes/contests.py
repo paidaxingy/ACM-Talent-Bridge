@@ -289,8 +289,44 @@ def list_contest_problems_detail(
     return out
 
 
-@router.post("/{contest_id}/register", response_model=ContestTeamRegistrationOut, status_code=status.HTTP_201_CREATED)
-def register_contest(
+@router.post("/{contest_id}/register", response_model=ContestRegistrationOut, status_code=status.HTTP_201_CREATED)
+def register_contest_individual(
+    contest_id: int,
+    payload: ContestRegistrationCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    contest = db.get(Contest, contest_id)
+    if not contest:
+        raise HTTPException(status_code=404, detail="Contest not found")
+    _sync_status_inplace([contest], db)
+    if user.role != "admin" and contest.status == "draft":
+        raise HTTPException(status_code=404, detail="Contest not found")
+    if contest.status == "ended":
+        raise HTTPException(status_code=403, detail="Contest has ended")
+
+    member = db.execute(select(Member).where(Member.handle == user.username).limit(1)).scalars().first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    member_id = payload.member_id or member.id
+    if member_id != member.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Cannot register other members")
+
+    reg = ContestRegistration(contest_id=contest_id, member_id=member_id)
+    db.add(reg)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Already registered")
+
+    db.refresh(reg)
+    return reg
+
+
+@router.post("/{contest_id}/register-team", response_model=ContestTeamRegistrationOut, status_code=status.HTTP_201_CREATED)
+def register_contest_team(
     contest_id: int,
     payload: ContestTeamRegistrationCreate,
     db: Session = Depends(get_db),
@@ -302,7 +338,6 @@ def register_contest(
     _sync_status_inplace([contest], db)
     if user.role != "admin" and contest.status == "draft":
         raise HTTPException(status_code=404, detail="Contest not found")
-    # 时间驱动：已结束不可报名
     if contest.status == "ended":
         raise HTTPException(status_code=403, detail="Contest has ended")
 
@@ -320,13 +355,11 @@ def register_contest(
     if not any(tm.user_id == user.id for tm in (team.members or [])):
         raise HTTPException(status_code=403, detail="Not a team member")
 
-    # 产品层已去掉 Lab：不再绑定/校验 team.lab_id
-
     reg = ContestTeamRegistration(contest_id=contest_id, team_id=payload.team_id)
     db.add(reg)
     try:
         db.commit()
-    except IntegrityError:  # noqa: PERF203 (MVP)
+    except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Team already registered")
 

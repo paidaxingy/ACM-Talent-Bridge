@@ -15,11 +15,15 @@
             </div>
           </div>
           <div class="meta-actions">
-            <div v-if="activeTeam">
+            <div v-if="activeRegistration">
               <span class="active-team">
-                当前参赛队伍：
-                <strong>{{ activeTeam.team_name || `队伍 #${activeTeam.team_id}` }}</strong>
-                <span class="team-id">（ID: {{ activeTeam.team_id }}）</span>
+                <template v-if="activeRegistration.type === 'team'">
+                  当前参赛队伍：<strong>{{ activeRegistration.team_name || `队伍 #${activeRegistration.team_id}` }}</strong>
+                  <span class="team-id">（ID: {{ activeRegistration.team_id }}）</span>
+                </template>
+                <template v-else>
+                  当前状态：<strong>个人参赛</strong>
+                </template>
               </span>
             </div>
             <el-button type="primary" size="small" :loading="registering" @click="openRegisterDialog" :disabled="!canRegister">
@@ -69,15 +73,24 @@
     </el-card>
   </div>
 
-  <el-dialog v-model="registerDialogVisible" title="选择参赛队伍" width="420px">
-    <div v-if="!myTeams.length" style="font-size: 13px; color: var(--el-text-color-secondary)">
-      你当前还没有队伍，请先在“我的队伍”页创建或加入队伍后再来报名。
-    </div>
-    <el-radio-group v-else v-model="selectedTeamId" class="team-radio-group">
-      <el-radio v-for="t in myTeams" :key="t.team_id" :label="t.team_id">
-        {{ t.team_name || `队伍 #${t.team_id}` }}（ID: {{ t.team_id }}）
-      </el-radio>
+  <el-dialog v-model="registerDialogVisible" title="报名参赛" width="440px">
+    <el-radio-group v-model="registerType" class="register-type-group">
+      <el-radio label="individual">个人参赛</el-radio>
+      <el-radio label="team">团队参赛</el-radio>
     </el-radio-group>
+    <div v-if="registerType === 'team'" style="margin-top: 16px">
+      <div v-if="!myTeams.length" style="font-size: 13px; color: var(--el-text-color-secondary)">
+        你当前还没有队伍，请先在"我的队伍"页创建或加入队伍后再来报名。
+      </div>
+      <el-radio-group v-else v-model="selectedTeamId" class="team-radio-group">
+        <el-radio v-for="t in myTeams" :key="t.team_id" :label="t.team_id">
+          {{ t.team_name || `队伍 #${t.team_id}` }}（ID: {{ t.team_id }}）
+        </el-radio>
+      </el-radio-group>
+    </div>
+    <div v-else style="margin-top: 16px; font-size: 13px; color: var(--el-text-color-secondary)">
+      个人参赛无需组队，可直接参加比赛。
+    </div>
     <template #footer>
       <el-button @click="registerDialogVisible = false">取消</el-button>
       <el-button type="primary" :loading="registering" @click="onRegisterConfirm">确认报名</el-button>
@@ -131,13 +144,20 @@ interface MyTeam {
   team_members: { user_id: number; username: string }[]
 }
 
+interface ActiveRegistration {
+  type: 'team' | 'individual'
+  team_id?: number
+  team_name?: string | null
+}
+
 const contest = ref<ContestDetail | null>(null)
 const problems = ref<ContestProblem[]>([])
 const scoreboard = ref<Scoreboard | null>(null)
 const myTeams = ref<MyTeam[]>([])
-const activeTeam = ref<MyTeam | null>(null)
+const activeRegistration = ref<ActiveRegistration | null>(null)
 const registerDialogVisible = ref(false)
 const selectedTeamId = ref<number | null>(null)
+const registerType = ref<'individual' | 'team'>('individual')
 
 const activeTab = ref<'problems' | 'scoreboard'>('problems')
 const registering = ref(false)
@@ -158,11 +178,11 @@ const canRegister = computed(() => {
 
 const registerButtonText = computed(() => {
   const status = effectiveStatus.value
-  if (!contest.value) return '报名队伍参赛'
+  if (!contest.value) return '报名参赛'
   if (status === 'draft') return '未发布，暂不可报名'
   if (status === 'ended') return '已结束，不可报名'
   if (!canRegister.value) return '当前状态不可报名'
-  return '报名队伍参赛'
+  return '报名参赛'
 })
 
 function statusText(status?: ContestDetail['contest_status']) {
@@ -204,12 +224,17 @@ async function loadProblems() {
 async function loadMyTeams() {
   const { data } = await api.get<MyTeam[]>('/me/teams')
   myTeams.value = data
-  const stored = window.localStorage.getItem(`acm_tb_active_team_${contestId}`)
-  if (stored) {
-    const found = myTeams.value.find(t => t.team_id === Number(stored))
-    if (found) {
-      activeTeam.value = found
-      selectedTeamId.value = found.team_id
+  const storedTeam = window.localStorage.getItem(`acm_tb_active_team_${contestId}`)
+  const storedIndividual = window.localStorage.getItem(`acm_tb_active_individual_${contestId}`)
+  if (storedIndividual === 'true') {
+    activeRegistration.value = { type: 'individual' }
+    registerType.value = 'individual'
+  } else if (storedTeam) {
+    const team = myTeams.value.find(t => t.team_id === Number(storedTeam))
+    if (team) {
+      activeRegistration.value = { type: 'team', team_id: team.team_id, team_name: team.team_name }
+      selectedTeamId.value = team.team_id
+      registerType.value = 'team'
     }
   }
 }
@@ -225,54 +250,75 @@ async function loadScoreboard() {
 }
 
 function openRegisterDialog() {
-  if (activeTeam.value) {
-    selectedTeamId.value = activeTeam.value.team_id
+  if (activeRegistration.value?.type === 'team' && activeRegistration.value.team_id) {
+    selectedTeamId.value = activeRegistration.value.team_id
+    registerType.value = 'team'
+  } else {
+    registerType.value = 'individual'
+    selectedTeamId.value = null
   }
   registerDialogVisible.value = true
 }
 
 async function onRegisterConfirm() {
   if (!canRegister.value) return
-  const id = selectedTeamId.value
-  if (!id) {
-    ElMessage.warning('请选择一支队伍报名')
-    return
-  }
-  const team = myTeams.value.find(t => t.team_id === id)
-  if (!team) {
-    ElMessage.error('选择的队伍不存在，请刷新后重试')
-    return
-  }
-  if (!canRegister.value) return
   registering.value = true
   try {
-    await api.post(`/contests/${contestId}/register`, { team_id: team.team_id })
-    activeTeam.value = team
-    window.localStorage.setItem(`acm_tb_active_team_${contestId}`, String(team.team_id))
-    ElMessage.success('报名成功，队伍已加入本场竞赛')
+    if (registerType.value === 'individual') {
+      await api.post(`/contests/${contestId}/register`, {})
+      activeRegistration.value = { type: 'individual' }
+      window.localStorage.setItem(`acm_tb_active_individual_${contestId}`, 'true')
+      window.localStorage.removeItem(`acm_tb_active_team_${contestId}`)
+      ElMessage.success('报名成功，你将以个人身份参赛')
+    } else {
+      const id = selectedTeamId.value
+      if (!id) {
+        ElMessage.warning('请选择一支队伍报名')
+        return
+      }
+      const team = myTeams.value.find(t => t.team_id === id)
+      if (!team) {
+        ElMessage.error('选择的队伍不存在，请刷新后重试')
+        return
+      }
+      await api.post(`/contests/${contestId}/register-team`, { team_id: team.team_id })
+      activeRegistration.value = { type: 'team', team_id: team.team_id, team_name: team.team_name }
+      window.localStorage.setItem(`acm_tb_active_team_${contestId}`, String(team.team_id))
+      window.localStorage.removeItem(`acm_tb_active_individual_${contestId}`)
+      ElMessage.success('报名成功，队伍已加入本场竞赛')
+    }
     registerDialogVisible.value = false
   } catch (e: any) {
     const status = e?.response?.status
     const detail = e?.response?.data?.error_detail || e?.response?.data?.detail
-    // 如果后端返回“Team already registered”，视为当前队伍已报名成功，本地仍然记住 activeTeam
     if (status === 409 && typeof detail === 'string' && detail.toLowerCase().includes('already')) {
-      activeTeam.value = team
-      window.localStorage.setItem(`acm_tb_active_team_${contestId}`, String(team.team_id))
-      ElMessage.info('该队伍已报名，本场比赛将使用这支队伍参赛')
+      if (registerType.value === 'individual') {
+        activeRegistration.value = { type: 'individual' }
+        window.localStorage.setItem(`acm_tb_active_individual_${contestId}`, 'true')
+        window.localStorage.removeItem(`acm_tb_active_team_${contestId}`)
+      } else {
+        const team = myTeams.value.find(t => t.team_id === selectedTeamId.value)
+        if (team) {
+          activeRegistration.value = { type: 'team', team_id: team.team_id, team_name: team.team_name }
+          window.localStorage.setItem(`acm_tb_active_team_${contestId}`, String(team.team_id))
+          window.localStorage.removeItem(`acm_tb_active_individual_${contestId}`)
+        }
+      }
+      ElMessage.info('已报名成功')
       registerDialogVisible.value = false
     } else {
-      const msg = detail || '报名失败，请确认你已在队伍中或稍后重试'
+      const msg = detail || '报名失败，请稍后重试'
       ElMessage.error(msg)
     }
   } finally {
     registering.value = false
   }
-}
+  }
 
 function goProblem(row: ContestProblem) {
   const query: Record<string, any> = { contest_id: contestId }
-  if (activeTeam.value) {
-    query.team_id = activeTeam.value.team_id
+  if (activeRegistration.value?.type === 'team' && activeRegistration.value.team_id) {
+    query.team_id = activeRegistration.value.team_id
   }
   router.push({ path: `/problems/${row.problem_id}`, query })
 }

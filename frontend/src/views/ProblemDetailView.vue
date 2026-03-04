@@ -50,6 +50,7 @@
             <div class="subtitle" v-if="contestId">
               竞赛 ID：{{ contestId }}
               <span v-if="teamId">｜队伍 ID：{{ teamId }}</span>
+              <span v-else>｜个人参赛</span>
             </div>
           </div>
         </template>
@@ -259,8 +260,8 @@ async function onSubmit() {
     ElMessage.warning('代码不能为空')
     return
   }
-  if (!teamId || !Number.isFinite(teamId) || teamId <= 0) {
-    ElMessage.warning('缺少队伍信息，请从竞赛详情页选择队伍并报名后再提交')
+  if (contestId && !teamId) {
+    ElMessage.warning('请先从竞赛详情页报名后再提交')
     return
   }
   submitting.value = true
@@ -305,7 +306,7 @@ onBeforeUnmount(() => {
 async function loadActiveTeam() {
   if (!contestId) return
   try {
-    const { data } = await api.get<{ team_id: number; team_name: string | null }>(`/me/contests/${contestId}/active_team`)
+    const { data } = await api.get<{ team_id: number; team_name: string | null } | null>(`/me/contests/${contestId}/active_team`)
     if (data && typeof data.team_id === 'number') {
       activeTeamName.value = data.team_name || `队伍 #${data.team_id}`
     }

@@ -9,7 +9,7 @@ from app.core.deps import get_current_user
 from app.models.team import Team, TeamMember
 from app.models.user import User
 from app.models.member import Member
-from app.models.contest import ContestTeamRegistration
+from app.models.contest import ContestTeamRegistration, ContestRegistration
 from app.schemas.profile import MemberAbilityProfileOut
 from app.schemas.team import TeamMemberOut, TeamOut
 from app.services.ability_profile import compute_ability_profile
@@ -24,7 +24,7 @@ def my_profile(
 ):
     """
     基于当前登录用户的用户名，查找同名成员（handle = username），并返回能力画像。
-    前置条件：管理员在“成员管理”中为该用户名创建了对应的 member 记录。
+    前置条件：管理员在"成员管理"中为该用户名创建了对应的 member 记录。
     """
     member = (
       db.execute(
@@ -103,9 +103,9 @@ def my_active_team_for_contest(
     user: User = Depends(get_current_user),
 ):
     """
-    查询当前用户在某场比赛中报名的队伍（若有）。
+    查询当前用户在某场比赛中的报名信息（队伍或个人）。
     """
-    reg = (
+    team_reg = (
         db.execute(
             select(ContestTeamRegistration)
             .join(Team, Team.id == ContestTeamRegistration.team_id)
@@ -116,9 +116,19 @@ def my_active_team_for_contest(
         .scalars()
         .first()
     )
-    if not reg:
-        return {"team_id": None, "team_name": None}
+    if team_reg:
+        team = db.get(Team, team_reg.team_id)
+        return {"team_id": team.id if team else team_reg.team_id, "team_name": team.name if team else None}
 
-    team = db.get(Team, reg.team_id)
-    return {"team_id": team.id if team else reg.team_id, "team_name": team.name if team else None}
+    member = db.execute(select(Member).where(Member.handle == user.username).limit(1)).scalars().first()
+    if member:
+        individual_reg = db.execute(
+            select(ContestRegistration)
+            .where(ContestRegistration.contest_id == contest_id)
+            .where(ContestRegistration.member_id == member.id)
+        ).scalars().first()
+        if individual_reg:
+            return {"team_id": -member.id, "team_name": "个人参赛"}
+
+    return {"team_id": None, "team_name": None}
 

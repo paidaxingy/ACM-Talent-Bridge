@@ -1,27 +1,28 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class ContestCreate(BaseModel):
-    lab_id: int | None = Field(default=None, ge=1)
+    lab_id: Optional[int] = Field(default=None, ge=1)
     name: str = Field(min_length=1, max_length=128)
     contest_type: str = Field(default="training", max_length=16)
-    description: str | None = None
+    description: Optional[str] = None
     status: str = Field(default="draft", max_length=16)
-    start_at: datetime | None = None
-    end_at: datetime | None = None
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
 
 
 class ContestUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=128)
-    contest_type: str | None = Field(default=None, max_length=16)
-    description: str | None = None
-    status: str | None = Field(default=None, max_length=16)
-    start_at: datetime | None = None
-    end_at: datetime | None = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    contest_type: Optional[str] = Field(default=None, max_length=16)
+    description: Optional[str] = None
+    status: Optional[str] = Field(default=None, max_length=16)
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
 
 
 class ContestProblemAdd(BaseModel):
@@ -49,7 +50,7 @@ class ContestProblemDetailOut(BaseModel):
 
 
 class ContestRegistrationCreate(BaseModel):
-    member_id: int = Field(ge=1)
+    member_id: Optional[int] = Field(default=None, ge=1)
 
 
 class ContestRegistrationOut(BaseModel):
@@ -81,7 +82,7 @@ class TeamMemberBriefOut(BaseModel):
 
 class ContestTeamRegistrationDetailOut(BaseModel):
     team_id: int
-    team_name: str | None
+    team_name: Optional[str]
     members: list[TeamMemberBriefOut]
 
 
@@ -92,10 +93,10 @@ class ContestOut(BaseModel):
     lab_id: int
     name: str
     contest_type: str
-    description: str | None
+    description: Optional[str]
     status: str
-    start_at: datetime | None
-    end_at: datetime | None
+    start_at: Optional[datetime]
+    end_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
     contest_problems: list[ContestProblemOut] = []

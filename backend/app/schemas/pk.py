@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class PKMatchCreate(BaseModel):
-    lab_id: int | None = Field(default=None, ge=1)
-    title: str | None = Field(default=None, max_length=128)
+    lab_id: Optional[int] = Field(default=None, ge=1)
+    title: Optional[str] = Field(default=None, max_length=128)
 
     # Exactly 2 teams for MVP; each team is a list of member_ids
     teams: list[list[int]] = Field(min_length=2, max_length=2)
@@ -28,7 +29,7 @@ class PKMatchCreate(BaseModel):
 
 
 class PKMatchFinish(BaseModel):
-    winner_team_no: int | None = Field(default=None, ge=1)
+    winner_team_no: Optional[int] = Field(default=None, ge=1)
     is_draw: bool = False
 
     @model_validator(mode="after")
@@ -48,8 +49,8 @@ class PKParticipantOut(BaseModel):
     member_id: int
     team_no: int
     rating_before: int
-    rating_after: int | None
-    rating_delta: int | None
+    rating_after: Optional[int]
+    rating_delta: Optional[int]
 
 
 class PKMatchOut(BaseModel):
@@ -57,11 +58,69 @@ class PKMatchOut(BaseModel):
 
     id: int
     lab_id: int
-    title: str | None
+    title: Optional[str]
     status: str
-    winner_team_no: int | None
+    winner_team_no: Optional[int]
     is_draw: bool
     created_at: datetime
-    finished_at: datetime | None
+    finished_at: Optional[datetime]
     participants: list[PKParticipantOut]
+
+
+class PKChallengeCreate(BaseModel):
+    challengee_member_id: int = Field(..., ge=1)
+
+
+class PKChallengeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    challenger_member_id: int
+    challengee_member_id: int
+    challenger_handle: str
+    challengee_handle: str
+    status: str
+    problem_id: Optional[int]
+    winner_handle: Optional[str]
+    is_draw: bool
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    created_at: datetime
+
+
+class PKChallengeDetailOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    challenger_member_id: int
+    challengee_member_id: int
+    challenger_handle: str
+    challengee_handle: str
+    status: str
+    problem_id: Optional[int]
+    winner_handle: Optional[str]
+    is_draw: bool
+    started_at: Optional[datetime]
+    finished_at: Optional[datetime]
+    created_at: datetime
+
+    challenger: "MemberOut" = Field(exclude=True)
+    challengee: "MemberOut" = Field(exclude=True)
+    problem: Optional["ProblemOut"] = Field(exclude=True)
+
+
+class MemberOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    handle: str
+    rating: int
+    tier: int
+
+
+class ProblemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
 
