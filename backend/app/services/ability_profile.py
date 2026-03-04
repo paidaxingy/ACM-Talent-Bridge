@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.interview import InterviewAnswer, InterviewQuestion, InterviewSession
 from app.models.member import Member
-from app.models.pk import PKMatch, PKParticipant
+from app.models.pk import PKChallenge
 from app.services.member_profile import MemberProfileSummary, build_member_profile_summary
 
 
@@ -54,21 +54,30 @@ def compute_ability_profile(db: Session, member_id: int) -> AbilityProfile:
     ).scalar_one()
     interview_avg = float(interview_avg_score) if interview_avg_score is not None else None
 
-    # Rating trend (last 10 finished PK deltas)
-    deltas = (
+    # Rating trend (last 10 finished PKChallenge deltas for this member)
+    recent_challenges = (
         db.execute(
-            select(PKParticipant.rating_delta)
-            .join(PKMatch, PKMatch.id == PKParticipant.match_id)
-            .where(PKParticipant.member_id == member_id)
-            .where(PKMatch.status == "finished")
-            .where(PKParticipant.rating_delta.is_not(None))
-            .order_by(PKMatch.id.desc(), PKParticipant.id.desc())
+            select(PKChallenge)
+            .where(
+                (PKChallenge.challenger_member_id == member_id)
+                | (PKChallenge.challengee_member_id == member_id)
+            )
+            .where(PKChallenge.status == "finished")
+            .order_by(PKChallenge.finished_at.desc(), PKChallenge.id.desc())
             .limit(10)
         )
         .scalars()
         .all()
     )
-    rating_trend_last10 = int(sum(int(d or 0) for d in deltas))
+    deltas: list[int] = []
+    for ch in recent_challenges:
+        if ch.challenger_member_id == member_id:
+            delta = ch.challenger_rating_delta
+        else:
+            delta = ch.challengee_rating_delta
+        if delta is not None:
+            deltas.append(int(delta))
+    rating_trend_last10 = int(sum(deltas))
 
     # Dimension heuristics
     # Competitive strength: map rating 1200..2400 -> 20..95

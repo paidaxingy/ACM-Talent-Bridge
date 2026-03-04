@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import select, or_
+from sqlalchemy import or_, select
 
 from app.core.celery_app import celery
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.models.member import Member
 from app.models.pk import PKChallenge
-from app.models.problem import Problem
-from app.models.problem import Testcase
+from app.models.problem import Problem, Testcase
 from app.models.submission import Submission
 from app.schemas.submission import normalize_language
 from app.services.judge_docker import judge_in_docker
@@ -58,18 +57,29 @@ def _settle_pk_challenge(db: SessionLocal, submission: Submission):
     if challenge.winner_handle == challenge.challenger_handle:
         winner = challenge.challenger
         loser = challenge.challengee
+        winner_side = "challenger"
     else:
         winner = challenge.challengee
         loser = challenge.challenger
+        winner_side = "challengee"
 
     if winner and loser:
         from app.services.elo import expected_score
+
         exp = expected_score(winner.rating, loser.rating)
         k = 32
-        delta = int(k * (1 - exp))
+        delta = int(round(k * (1 - exp)))
         winner.rating += delta
         loser.rating -= delta
-    
+
+        # Persist rating delta on PKChallenge for later统计/画像
+        if winner_side == "challenger":
+            challenge.challenger_rating_delta = delta
+            challenge.challengee_rating_delta = -delta
+        else:
+            challenge.challenger_rating_delta = -delta
+            challenge.challengee_rating_delta = delta
+
     db.commit()
 
 

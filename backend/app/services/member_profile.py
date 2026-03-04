@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.contest import ContestRegistration
 from app.models.member import Member
-from app.models.pk import PKMatch, PKParticipant
+from app.models.pk import PKChallenge
 from app.models.submission import Submission
 from app.models.user import User
 
@@ -39,31 +39,36 @@ def build_member_profile_summary(db: Session, member_id: int) -> MemberProfileSu
     if not member:
         raise ValueError("Member not found")
 
-    # PK stats (only finished matches)
-    pk_rows = (
-        db.execute(
-            select(PKParticipant.team_no, PKMatch.winner_team_no, PKMatch.is_draw)
-            .join(PKMatch, PKMatch.id == PKParticipant.match_id)
-            .where(PKParticipant.member_id == member_id)
-            .where(PKMatch.status == "finished")
-        )
-        .all()
-    )
-    pk_total = len(pk_rows)
+    # PK stats (only finished 1v1 challenges, based on PKChallenge)
     pk_wins = 0
     pk_losses = 0
     pk_draws = 0
-    for team_no, winner_team_no, is_draw in pk_rows:
-        if is_draw:
+    pk_challenges = (
+        db.execute(
+            select(PKChallenge)
+            .where(PKChallenge.status == "finished")
+            .where(
+                or_(
+                    PKChallenge.challenger_member_id == member_id,
+                    PKChallenge.challengee_member_id == member_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    handle = member.handle
+    for ch in pk_challenges:
+        if ch.is_draw:
             pk_draws += 1
-        elif winner_team_no == team_no:
+        elif ch.winner_handle == handle:
             pk_wins += 1
         else:
             pk_losses += 1
+    pk_total = pk_wins + pk_losses + pk_draws
 
     # Submission stats: 统计该成员的所有提交
     # 优先用 member_id，如果没有则通过 user.username -> member.handle 关联（兼容旧数据）
-    handle = member.handle
     submissions_total = int(
         db.execute(
             select(func.count())

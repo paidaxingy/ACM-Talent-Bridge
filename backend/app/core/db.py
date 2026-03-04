@@ -95,7 +95,20 @@ def init_db() -> None:
             if "ai_profile_last_error" not in member_cols:
                 conn.execute(text("ALTER TABLE members ADD COLUMN ai_profile_last_error TEXT NULL"))
     except Exception:
-        # Best-effort only; should not block startup in constrained environments.
+        # Best-effort only; should not block startup due to a best-effort step.
+        pass
+
+    # Lightweight compatibility migration for PK challenge rating deltas.
+    try:
+        inspector = inspect(engine)
+        pk_cols = {c["name"] for c in inspector.get_columns("pk_challenges")}
+        with engine.begin() as conn:
+            if "challenger_rating_delta" not in pk_cols:
+                conn.execute(text("ALTER TABLE pk_challenges ADD COLUMN challenger_rating_delta INT NULL"))
+            if "challengee_rating_delta" not in pk_cols:
+                conn.execute(text("ALTER TABLE pk_challenges ADD COLUMN challengee_rating_delta INT NULL"))
+    except Exception:
+        # Best-effort only; should not block startup due to a best-effort step.
         pass
 
     # MVP convenience: ensure there is at least one default Lab so admin pages

@@ -339,14 +339,43 @@ def cancel_challenge(challenge_id: int, db: Session = Depends(get_db), user: Use
     if challenge.status not in ["pending", "accepted"]:
         raise HTTPException(status_code=400, detail="Cannot cancel this challenge")
 
+    # pending：允许发起方无损取消；accepted：视为“认输”，对方胜利并结算 Elo
     if challenge.status == "pending":
         if challenge.challenger_member_id != member.id:
             raise HTTPException(status_code=403, detail="Only the challenger can cancel a pending challenge")
         challenge.status = "cancelled"
     else:
-        challenge.status = "cancelled"
+        # accepted 状态下取消：当前操作人认输，另一方获胜
+        if challenge.challenger_member_id == member.id:
+            winner = challenge.challengee
+            loser = challenge.challenger
+            winner_side = "challengee"
+        else:
+            winner = challenge.challenger
+            loser = challenge.challengee
+            winner_side = "challenger"
+
+        challenge.status = "finished"
         challenge.finished_at = now_beijing()
-        challenge.is_draw = True
+        challenge.is_draw = False
+        challenge.winner_handle = winner.handle if winner else None
+
+        if winner and loser:
+            from app.services.elo import expected_score
+
+            exp = expected_score(winner.rating, loser.rating)
+            k = 32
+            delta = int(round(k * (1 - exp)))
+            winner.rating += delta
+            loser.rating -= delta
+
+            if winner_side == "challenger":
+                challenge.challenger_rating_delta = delta
+                challenge.challengee_rating_delta = -delta
+            else:
+                challenge.challenger_rating_delta = -delta
+                challenge.challengee_rating_delta = delta
+
     db.commit()
     db.refresh(challenge)
     return challenge
@@ -373,17 +402,27 @@ def settle_challenge(challenge_id: int, winner_handle: str | None, db: Session =
         if challenge.winner_handle == challenge.challenger_handle:
             winner = challenge.challenger
             loser = challenge.challengee
+            winner_side = "challenger"
         else:
             winner = challenge.challengee
             loser = challenge.challenger
+            winner_side = "challengee"
 
         if winner and loser:
             from app.services.elo import expected_score
+
             exp = expected_score(winner.rating, loser.rating)
             k = 32
-            delta = int(k * (1 - exp))
+            delta = int(round(k * (1 - exp)))
             winner.rating += delta
             loser.rating -= delta
+
+            if winner_side == "challenger":
+                challenge.challenger_rating_delta = delta
+                challenge.challengee_rating_delta = -delta
+            else:
+                challenge.challenger_rating_delta = -delta
+                challenge.challengee_rating_delta = delta
 
     db.commit()
     db.refresh(challenge)

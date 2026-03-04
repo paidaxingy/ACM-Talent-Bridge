@@ -131,6 +131,15 @@
                   <el-tag v-else type="danger">失败</el-tag>
                 </template>
               </el-table-column>
+              <el-table-column label="Rating 变化" width="110">
+                <template #default="{ row }">
+                  <span v-if="getRatingDelta(row) !== null"
+                        :style="{ color: getRatingDelta(row)! > 0 ? '#16a34a' : (getRatingDelta(row)! < 0 ? '#dc2626' : '#6b7280') }">
+                    {{ getRatingDelta(row)! > 0 ? `+${getRatingDelta(row)}` : getRatingDelta(row) }}
+                  </span>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
               <el-table-column label="用时" width="100">
                 <template #default="{ row }">
                   {{ formatDuration(row.started_at, row.finished_at) }}
@@ -162,6 +171,8 @@ interface Challenge {
   is_draw: boolean
   started_at: string | null
   finished_at: string | null
+  challenger_rating_delta?: number | null
+  challengee_rating_delta?: number | null
 }
 
 interface Member {
@@ -341,6 +352,16 @@ function getStatusText(status: string) {
     finished: '已结束',
   }
   return map[status] || status
+}
+
+function getRatingDelta(challenge: Challenge): number | null {
+  if (challenge.is_draw) return 0
+  const isChallenger = challenge.challenger_handle === myHandle.value
+  const delta = isChallenger ? challenge.challenger_rating_delta : challenge.challengee_rating_delta
+  if (delta === undefined || delta === null) {
+    return null
+  }
+  return Number.isFinite(delta as number) ? (delta as number) : null
 }
 
 function getProblemName(problemId: number | null) {

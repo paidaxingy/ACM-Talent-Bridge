@@ -83,6 +83,8 @@ class PKChallengeOut(BaseModel):
     problem_id: Optional[int]
     winner_handle: Optional[str]
     is_draw: bool
+    challenger_rating_delta: Optional[int] = None
+    challengee_rating_delta: Optional[int] = None
     started_at: Optional[datetime]
     finished_at: Optional[datetime]
     created_at: datetime
@@ -100,6 +102,8 @@ class PKChallengeDetailOut(BaseModel):
     problem_id: Optional[int]
     winner_handle: Optional[str]
     is_draw: bool
+    challenger_rating_delta: Optional[int] = None
+    challengee_rating_delta: Optional[int] = None
     started_at: Optional[datetime]
     finished_at: Optional[datetime]
     created_at: datetime

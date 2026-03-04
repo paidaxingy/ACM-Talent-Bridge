@@ -74,6 +74,10 @@ class PKChallenge(Base):
     winner_handle: Mapped[str | None] = mapped_column(String(64), default=None)
     is_draw: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Elo rating delta for each side (winner 正数，loser 负数；平局通常为 0)
+    challenger_rating_delta: Mapped[int | None] = mapped_column(Integer, default=None)
+    challengee_rating_delta: Mapped[int | None] = mapped_column(Integer, default=None)
+
     started_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
