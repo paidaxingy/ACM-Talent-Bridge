@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -29,4 +31,7 @@ class MemberAbilityProfileOut(BaseModel):
 
     recommended_directions: list[dict]
     improvement_plan: list[str]
+    persona_summary: str | None = None
+    ai_profile_generated_at: datetime | None = None
+    ai_profile_source: str = "rule"
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.interview import InterviewAnswer, InterviewQuestion, InterviewSession
+from app.models.member import Member
 from app.models.pk import PKMatch, PKParticipant
 from app.services.member_profile import MemberProfileSummary, build_member_profile_summary
 
@@ -118,4 +120,78 @@ def compute_ability_profile(db: Session, member_id: int) -> AbilityProfile:
         recommended_directions=dirs,
         improvement_plan=plan,
     )
+
+
+def resolve_member_profile_view(db: Session, member: Member) -> dict:
+    """
+    Build profile view payload for API.
+    Priority:
+    1) valid AI cache in member table
+    2) rule-based computed profile
+    """
+    p = compute_ability_profile(db, member.id)
+    s = p.summary
+
+    payload = {
+        "member_id": s.member_id,
+        "handle": s.handle,
+        "rating": s.rating,
+        "tier": s.tier,
+        "group_name": s.group_name,
+        "pk_total": s.pk_total,
+        "pk_wins": s.pk_wins,
+        "pk_losses": s.pk_losses,
+        "pk_draws": s.pk_draws,
+        "submissions_total": s.submissions_total,
+        "submissions_ac": s.submissions_ac,
+        "contests_registered": s.contests_registered,
+        "interview_avg_score": p.interview_avg_score,
+        "rating_trend_last10": p.rating_trend_last10,
+        "competitive_strength": p.competitive_strength,
+        "consistency": p.consistency,
+        "communication": p.communication,
+        "problem_solving": p.problem_solving,
+        "recommended_directions": p.recommended_directions,
+        "improvement_plan": p.improvement_plan,
+        "persona_summary": None,
+        "ai_profile_generated_at": None,
+        "ai_profile_source": "rule",
+    }
+
+    if not member.ai_profile_cache:
+        return payload
+
+    try:
+        obj = json.loads(member.ai_profile_cache)
+        if not isinstance(obj, dict):
+            return payload
+
+        def _score(name: str, default: int) -> int:
+            raw = obj.get(name, default)
+            return max(0, min(100, int(raw)))
+
+        directions = obj.get("recommended_directions")
+        if not isinstance(directions, list):
+            directions = payload["recommended_directions"]
+
+        plan = obj.get("improvement_plan")
+        if not isinstance(plan, list):
+            plan = payload["improvement_plan"]
+
+        payload.update(
+            {
+                "competitive_strength": _score("competitive_strength", payload["competitive_strength"]),
+                "consistency": _score("consistency", payload["consistency"]),
+                "communication": _score("communication", payload["communication"]),
+                "problem_solving": _score("problem_solving", payload["problem_solving"]),
+                "recommended_directions": directions,
+                "improvement_plan": [str(x) for x in plan if str(x).strip()],
+                "persona_summary": str(obj.get("persona_summary", "")).strip() or None,
+                "ai_profile_generated_at": member.ai_profile_generated_at,
+                "ai_profile_source": "ai_cache",
+            }
+        )
+        return payload
+    except Exception:  # noqa: BLE001
+        return payload
 

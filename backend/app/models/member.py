@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -36,6 +36,11 @@ class Member(Base):
     # Resume
     resume_filename: Mapped[str | None] = mapped_column(String(256), default=None)
     resume_url: Mapped[str | None] = mapped_column(String(512), default=None)
+
+    # AI profile cache (daily generated)
+    ai_profile_cache: Mapped[str | None] = mapped_column(Text, default=None)
+    ai_profile_generated_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    ai_profile_last_error: Mapped[str | None] = mapped_column(Text, default=None)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

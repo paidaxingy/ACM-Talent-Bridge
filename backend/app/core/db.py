@@ -83,6 +83,21 @@ def init_db() -> None:
         # Best-effort only; should not block startup in constrained environments.
         pass
 
+    # Lightweight compatibility migration for AI profile cache fields on members.
+    try:
+        inspector = inspect(engine)
+        member_cols = {c["name"] for c in inspector.get_columns("members")}
+        with engine.begin() as conn:
+            if "ai_profile_cache" not in member_cols:
+                conn.execute(text("ALTER TABLE members ADD COLUMN ai_profile_cache TEXT NULL"))
+            if "ai_profile_generated_at" not in member_cols:
+                conn.execute(text("ALTER TABLE members ADD COLUMN ai_profile_generated_at DATETIME NULL"))
+            if "ai_profile_last_error" not in member_cols:
+                conn.execute(text("ALTER TABLE members ADD COLUMN ai_profile_last_error TEXT NULL"))
+    except Exception:
+        # Best-effort only; should not block startup in constrained environments.
+        pass
+
     # MVP convenience: ensure there is at least one default Lab so admin pages
     # (Problems/Contests) don't require users to manually create and remember a lab_id.
     try:

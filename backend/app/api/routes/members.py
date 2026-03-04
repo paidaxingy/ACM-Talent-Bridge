@@ -10,7 +10,7 @@ from app.models.lab import Lab
 from app.models.member import Member
 from app.schemas.member import MemberCreate, MemberOut, MemberUpdate
 from app.schemas.profile import MemberAbilityProfileOut
-from app.services.ability_profile import compute_ability_profile
+from app.services.ability_profile import resolve_member_profile_view
 
 router = APIRouter(prefix="/members")
 
@@ -91,30 +91,7 @@ def get_member_profile(member_id: int, db: Session = Depends(get_db)):
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    p = compute_ability_profile(db, member_id)
-    s = p.summary
-    return MemberAbilityProfileOut(
-        member_id=s.member_id,
-        handle=s.handle,
-        rating=s.rating,
-        tier=s.tier,
-        group_name=s.group_name,
-        pk_total=s.pk_total,
-        pk_wins=s.pk_wins,
-        pk_losses=s.pk_losses,
-        pk_draws=s.pk_draws,
-        submissions_total=s.submissions_total,
-        submissions_ac=s.submissions_ac,
-        contests_registered=s.contests_registered,
-        interview_avg_score=p.interview_avg_score,
-        rating_trend_last10=p.rating_trend_last10,
-        competitive_strength=p.competitive_strength,
-        consistency=p.consistency,
-        communication=p.communication,
-        problem_solving=p.problem_solving,
-        recommended_directions=p.recommended_directions,
-        improvement_plan=p.improvement_plan,
-    )
+    return MemberAbilityProfileOut(**resolve_member_profile_view(db, member))
 
 
 @router.patch("/{member_id}", response_model=MemberOut)

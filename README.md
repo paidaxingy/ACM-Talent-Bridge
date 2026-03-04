@@ -43,7 +43,7 @@ ACM-Talent-Bridge/
 - **OJ 提交 + 异步评测**：提交后 Celery 异步判题并回写结果；支持 rejudge
 - **赛历聚合**：当前默认聚合 Codeforces，支持接口触发刷新与定时刷新
 - **AI 面试（聊天式）**：学生侧对话面试、逐轮评分/标准答案、会话总分；支持 DeepSeek（OpenAI 兼容）
-- **能力画像/就业建议（规则版）**：融合 rating/PK/提交/面试评分，输出方向建议与提升计划
+- **能力画像/就业建议（AI 日更）**：每天由 DeepSeek 生成维度评分、推荐方向、提升计划与能力画像文案；失败时保留上次成功结果
 - **认证占位（JWT）**：注册/登录/获取当前用户（当前业务接口未强制鉴权，后续可逐步加 RBAC）
 
 > 完整接口请以 Swagger 为准：启动后访问 `http://localhost:8000/docs`
@@ -72,14 +72,6 @@ docker compose up -d --build
 
 - Swagger：`http://localhost:8000/docs`
 - 健康检查：`http://localhost:8000/api/v1/health`
-
-### 5）（可选）运行端到端自检
-
-项目内置了一个不依赖额外库的冒烟测试脚本，会跑一遍：lab→成员→题目/测试点→提交判题→榜单→PK→赛历→AI 面试→画像。
-
-```bash
-python3 scripts/smoke_test.py
-```
 
 ---
 
@@ -235,4 +227,13 @@ JUDGE_WORKSPACE_VOLUME=judge_workspace
 - **简历解析**：PDF 先走文本提取，文本质量不足时自动 OCR（中文+英文）兜底；若仍不可读，会返回“请上传可复制文字的 PDF”。
 - **超时策略**：后端调用 AI 超时上调为 90s；前端 API 请求超时上调为 180s（3 分钟），减少 DeepSeek 慢响应导致的前端超时。
 - **Docker 持久化**：`docker-compose.yml` 已挂载 `./backend/resumes:/app/resumes`，重建 `api/worker` 后简历文件仍保留在宿主机 `backend/resumes`。
+
+---
+
+## 个人主页 AI 画像（日更）
+
+- **生成机制**：后端 Celery beat 每天（北京时间）自动执行一次成员画像生成任务（DeepSeek）。
+- **覆盖范围**：维度评分（竞技强度/稳定性/表达/解题）、推荐方向、提升计划、能力画像文案。
+- **失败策略**：若某次调用失败，仅记录错误，不覆盖历史缓存；页面继续展示上一次成功结果。
+- **接口表现**：`/api/v1/me/profile` 与 `/api/v1/members/{id}/profile` 优先返回 AI 缓存，首次无缓存时回退规则版。
 

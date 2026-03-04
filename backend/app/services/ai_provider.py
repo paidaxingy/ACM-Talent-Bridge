@@ -43,6 +43,18 @@ class ChatTurnEvaluation:
     raw: str | None = None
 
 
+@dataclass(frozen=True)
+class MemberAIProfileResult:
+    competitive_strength: int
+    consistency: int
+    communication: int
+    problem_solving: int
+    recommended_directions: list[dict]
+    improvement_plan: list[str]
+    persona_summary: str
+    raw: str | None = None
+
+
 class AIProvider:
     def generate_questions(
         self,
@@ -77,6 +89,9 @@ class AIProvider:
         candidate_answer: str,
         is_last_round: bool,
     ) -> ChatTurnEvaluation:
+        raise NotImplementedError
+
+    def generate_member_ai_profile(self, profile: dict, *, resume_text: str | None) -> MemberAIProfileResult:
         raise NotImplementedError
 
 
@@ -179,6 +194,34 @@ class MockProvider(AIProvider):
             next_question=next_question,
             next_difficulty=next_difficulty,
             raw=json.dumps({"mock": True, "length": length}, ensure_ascii=False),
+        )
+
+    def generate_member_ai_profile(self, profile: dict, *, resume_text: str | None) -> MemberAIProfileResult:
+        def _clamp(v: int) -> int:
+            return max(0, min(100, int(v)))
+
+        base_comp = _clamp(profile.get("competitive_strength", 60))
+        base_cons = _clamp(profile.get("consistency", 55))
+        base_comm = _clamp(profile.get("communication", 60))
+        base_prob = _clamp(profile.get("problem_solving", 58))
+
+        recommended = profile.get("recommended_directions") or [
+            {"direction": "后端开发", "reason": "建议先夯实数据结构、系统设计与工程实践。"}
+        ]
+        plan = profile.get("improvement_plan") or ["每周完成阶段复盘，并沉淀可复用的解题与工程模板。"]
+        summary = "你具备一定训练基础，建议继续强化项目表达与工程细节，逐步提升稳定输出能力。"
+        if resume_text:
+            summary = "你的简历体现了真实项目与竞赛经历，后续重点在于量化成果表达和关键技术取舍说明。"
+
+        return MemberAIProfileResult(
+            competitive_strength=base_comp,
+            consistency=base_cons,
+            communication=base_comm,
+            problem_solving=base_prob,
+            recommended_directions=recommended[:3],
+            improvement_plan=[str(x) for x in plan][:6],
+            persona_summary=summary,
+            raw=json.dumps({"mock": True}, ensure_ascii=False),
         )
 
 
@@ -470,6 +513,82 @@ class OpenAICompatibleProvider(AIProvider):
                 suggestions="按 STAR 或 背景-问题-行动-结果 结构回答，并补充指标/日志/对比数据。",
                 next_question=next_question,
                 next_difficulty="medium",
+                raw=content,
+            )
+
+    def generate_member_ai_profile(self, profile: dict, *, resume_text: str | None) -> MemberAIProfileResult:
+        prompt = (
+            "你是高校 ACM 成员培养与求职辅导专家，请生成该成员的能力画像结论。\n"
+            f"成员画像基础数据（JSON）：{json.dumps(profile, ensure_ascii=False)}\n"
+            f"简历文本（可能为空）：{resume_text or '（未提供）'}\n\n"
+            "输出要求：严格 JSON 对象，字段如下：\n"
+            "- competitive_strength: 0-100 整数\n"
+            "- consistency: 0-100 整数\n"
+            "- communication: 0-100 整数\n"
+            "- problem_solving: 0-100 整数\n"
+            "- recommended_directions: 数组，每项包含 direction, reason\n"
+            "- improvement_plan: 数组，每项是一条可执行建议\n"
+            "- persona_summary: 80-180字中文总结\n"
+            "规则：\n"
+            "1) 结论要与输入数据一致，不要凭空编造经历；\n"
+            "2) 推荐方向不超过3条，提升计划不超过6条；\n"
+            "3) 若简历中有技术栈/项目，结论应体现对应方向。"
+        )
+        content = self._post_chat([{"role": "user", "content": prompt}], temperature=0.2)
+        try:
+            obj = self._extract_json_object(content) or {}
+
+            def _clamp(v: int) -> int:
+                return max(0, min(100, int(v)))
+
+            recommended = obj.get("recommended_directions") or []
+            if not isinstance(recommended, list):
+                recommended = []
+            normalized_recommended: list[dict] = []
+            for item in recommended[:3]:
+                if not isinstance(item, dict):
+                    continue
+                direction = str(item.get("direction", "")).strip()
+                reason = str(item.get("reason", "")).strip()
+                if direction and reason:
+                    normalized_recommended.append({"direction": direction, "reason": reason})
+
+            improvement = obj.get("improvement_plan") or []
+            if not isinstance(improvement, list):
+                improvement = []
+            normalized_plan = [str(x).strip() for x in improvement if str(x).strip()][:6]
+
+            summary = str(obj.get("persona_summary", "")).strip()
+            if not summary:
+                summary = "当前画像生成成功，但总结文本较短，建议结合近期训练和项目经历继续补充。"
+
+            return MemberAIProfileResult(
+                competitive_strength=_clamp(obj.get("competitive_strength", profile.get("competitive_strength", 60))),
+                consistency=_clamp(obj.get("consistency", profile.get("consistency", 55))),
+                communication=_clamp(obj.get("communication", profile.get("communication", 60))),
+                problem_solving=_clamp(obj.get("problem_solving", profile.get("problem_solving", 58))),
+                recommended_directions=normalized_recommended
+                or (profile.get("recommended_directions") if isinstance(profile.get("recommended_directions"), list) else []),
+                improvement_plan=normalized_plan
+                or ([str(x) for x in profile.get("improvement_plan", []) if str(x).strip()][:6]),
+                persona_summary=summary,
+                raw=content,
+            )
+        except Exception:  # noqa: BLE001
+            return MemberAIProfileResult(
+                competitive_strength=max(0, min(100, int(profile.get("competitive_strength", 60)))),
+                consistency=max(0, min(100, int(profile.get("consistency", 55)))),
+                communication=max(0, min(100, int(profile.get("communication", 60)))),
+                problem_solving=max(0, min(100, int(profile.get("problem_solving", 58)))),
+                recommended_directions=(
+                    profile.get("recommended_directions")
+                    if isinstance(profile.get("recommended_directions"), list)
+                    else [{"direction": "后端开发", "reason": "建议补齐工程实践并强化系统设计能力。"}]
+                ),
+                improvement_plan=[
+                    str(x) for x in (profile.get("improvement_plan") or ["保持周训练节奏并强化复盘质量。"]) if str(x).strip()
+                ][:6],
+                persona_summary="已保留基础画像，AI 输出解析失败，建议稍后重试生成更细粒度结论。",
                 raw=content,
             )
 

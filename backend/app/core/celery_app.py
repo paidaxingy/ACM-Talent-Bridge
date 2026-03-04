@@ -29,7 +29,11 @@ celery.conf.beat_schedule = {
     "aggregate-contests-daily-cst-0005": {
         "task": "app.tasks.aggregate_contests",
         "schedule": crontab(minute=5, hour=0),
-    }
+    },
+    "generate-member-ai-profile-daily-cst-0020": {
+        "task": "app.tasks.generate_daily_ai_profiles",
+        "schedule": crontab(minute=20, hour=0),
+    },
 }
 
 celery.autodiscover_tasks(["app"])

@@ -12,7 +12,7 @@ from app.models.member import Member
 from app.models.contest import ContestTeamRegistration, ContestRegistration
 from app.schemas.profile import MemberAbilityProfileOut
 from app.schemas.team import TeamMemberOut, TeamOut
-from app.services.ability_profile import compute_ability_profile
+from app.services.ability_profile import resolve_member_profile_view
 
 router = APIRouter(prefix="/me")
 
@@ -36,30 +36,7 @@ def my_profile(
     if not member:
         raise HTTPException(status_code=404, detail="Member not found for current user")
 
-    p = compute_ability_profile(db, member.id)
-    s = p.summary
-    return MemberAbilityProfileOut(
-        member_id=s.member_id,
-        handle=s.handle,
-        rating=s.rating,
-        tier=s.tier,
-        group_name=s.group_name,
-        pk_total=s.pk_total,
-        pk_wins=s.pk_wins,
-        pk_losses=s.pk_losses,
-        pk_draws=s.pk_draws,
-        submissions_total=s.submissions_total,
-        submissions_ac=s.submissions_ac,
-        contests_registered=s.contests_registered,
-        interview_avg_score=p.interview_avg_score,
-        rating_trend_last10=p.rating_trend_last10,
-        competitive_strength=p.competitive_strength,
-        consistency=p.consistency,
-        communication=p.communication,
-        problem_solving=p.problem_solving,
-        recommended_directions=p.recommended_directions,
-        improvement_plan=p.improvement_plan,
-    )
+    return MemberAbilityProfileOut(**resolve_member_profile_view(db, member))
 
 
 @router.get("/teams", response_model=list[TeamOut])

@@ -89,6 +89,24 @@
         </el-row>
 
         <el-row :gutter="16" style="margin-top: 16px">
+          <el-col :span="24">
+            <el-card class="block-card" shadow="hover">
+              <div class="block-title">能力画像</div>
+              <div v-if="profile.persona_summary" class="persona-text">
+                {{ profile.persona_summary }}
+              </div>
+              <div v-else class="empty">暂无画像总结</div>
+              <div class="profile-meta">
+                来源：{{ profile.ai_profile_source === 'ai_cache' ? 'AI 日更缓存' : '规则回退' }}
+                <span v-if="profile.ai_profile_generated_at">
+                  · 生成时间：{{ formatDateTime(profile.ai_profile_generated_at) }}
+                </span>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="16" style="margin-top: 16px">
           <el-col :span="12">
             <el-card class="block-card" shadow="hover">
               <div class="block-title">推荐方向</div>
@@ -155,6 +173,9 @@ interface Profile {
   problem_solving: number
   recommended_directions: { direction: string; reason: string }[]
   improvement_plan: string[]
+  persona_summary: string | null
+  ai_profile_generated_at: string | null
+  ai_profile_source: 'ai_cache' | 'rule'
 }
 
 const profile = ref<Profile | null>(null)
@@ -243,6 +264,12 @@ function previewResume() {
   }
 }
 
+function formatDateTime(value: string) {
+  const dt = new Date(value)
+  if (Number.isNaN(dt.getTime())) return value
+  return dt.toLocaleString('zh-CN', { hour12: false })
+}
+
 // 自动刷新：每30秒刷新一次（仅自己的主页）
 onMounted(() => {
   load()
@@ -322,6 +349,18 @@ onBeforeUnmount(() => {
 
 .resume-section {
   margin-top: 12px;
+}
+
+.persona-text {
+  line-height: 1.8;
+  color: var(--el-text-color-regular);
+  white-space: pre-wrap;
+}
+
+.profile-meta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>
 
