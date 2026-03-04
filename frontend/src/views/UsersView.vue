@@ -39,12 +39,21 @@
           {{ formatTime(row.created_at) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240">
+      <el-table-column label="操作" width="360">
         <template #default="{ row }">
           <el-button size="small" type="primary" plain @click="setRole(row, 'admin')" :disabled="row.role === 'admin'">设为管理员</el-button>
           <el-button size="small" plain @click="setRole(row, 'student')" :disabled="row.role === 'student'">设为学生</el-button>
           <el-button size="small" type="warning" plain @click="toggleActive(row)">
             {{ row.is_active ? '禁用' : '启用' }}
+          </el-button>
+          <el-button
+            size="small"
+            type="success"
+            plain
+            :loading="regenLoading[row.user_id] === true"
+            @click="regenerateProfile(row)"
+          >
+            重算画像
           </el-button>
         </template>
       </el-table-column>
@@ -69,6 +78,8 @@ interface User {
 const users = ref<User[]>([])
 const filterRole = ref<string | null>(null)
 const filterActive = ref<boolean | null>(null)
+const regenLoading = ref<Record<number, boolean>>({})
+const memberIdMap = ref<Record<string, number>>({})
 
 function formatTime(t: string) {
   return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : ''
@@ -78,8 +89,23 @@ async function load() {
   const params: Record<string, any> = {}
   if (filterRole.value) params.role = filterRole.value
   if (filterActive.value !== null) params.is_active = filterActive.value
-  const { data } = await api.get<User[]>('/users', { params })
-  users.value = data
+  try {
+    const [usersRes, membersRes] = await Promise.all([
+      api.get<User[]>('/users', { params }),
+      // /members 的 limit 最大 200，这里取一个足够大的上限
+      api.get<any[]>('/members', { params: { limit: 200 } }),
+    ])
+    users.value = usersRes.data
+    const map: Record<string, number> = {}
+    for (const m of membersRes.data) {
+      if (m && typeof m.handle === 'string' && typeof m.id === 'number') {
+        map[m.handle] = m.id
+      }
+    }
+    memberIdMap.value = map
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载用户/成员信息失败')
+  }
 }
 
 async function setRole(row: User, role: 'admin' | 'student') {
@@ -112,6 +138,38 @@ async function toggleActive(row: User) {
   await api.patch(`/users/${row.user_id}`, { is_active: next })
   ElMessage.success('更新成功')
   await load()
+}
+
+async function regenerateProfile(row: User) {
+  const memberId = memberIdMap.value[row.username]
+  if (!memberId) {
+    ElMessage.error('未找到同名成员（handle 与用户名不匹配）')
+    return
+  }
+  regenLoading.value[row.user_id] = true
+  try {
+    await ElMessageBox.confirm(
+      `将使用 DeepSeek 为 ${row.username} 重新生成能力画像，覆盖当前 AI 缓存。确定继续吗？`,
+      '重算能力画像',
+      {
+        type: 'warning',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+      },
+    )
+  } catch {
+    regenLoading.value[row.user_id] = false
+    return
+  }
+
+  try {
+    await api.post(`/members/${memberId}/profile/ai/regenerate`)
+    ElMessage.success('已触发 AI 画像重算')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '重算失败')
+  } finally {
+    regenLoading.value[row.user_id] = false
+  }
 }
 
 load()

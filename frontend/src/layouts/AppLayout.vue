@@ -25,6 +25,25 @@
         </el-menu>
 
         <div class="header-right">
+          <el-select
+            v-if="memberOptions.length"
+            v-model="selectedMemberId"
+            class="member-search"
+            size="small"
+            filterable
+            clearable
+            :filter-method="filterMembers"
+            placeholder="搜索成员主页"
+            @change="goMemberProfile"
+          >
+            <el-option
+              v-for="m in memberOptions"
+              :key="m.id"
+              :label="`${m.handle}（Rating ${m.rating}）`"
+              :value="m.id"
+            />
+          </el-select>
+
           <span class="user" v-if="user">
             <el-tag :type="user.role === 'admin' ? 'danger' : 'success'" size="small" effect="light" round>
               {{ user.role === 'admin' ? '管理员' : '学生' }}
@@ -47,17 +66,66 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { apiBaseUrl } from '../api/client'
+import { computed, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api, apiBaseUrl } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const router = useRouter()
 const apiBase = computed(() => apiBaseUrl())
 const auth = useAuthStore()
 
 const user = computed(() => auth.user)
 const isAdmin = computed(() => auth.user?.role === 'admin')
+
+interface MemberOption {
+  id: number
+  handle: string
+  rating: number
+}
+
+const allMembers = ref<MemberOption[]>([])
+const memberOptions = ref<MemberOption[]>([])
+const selectedMemberId = ref<number | null>(null)
+
+async function loadMembers() {
+  try {
+    const { data } = await api.get<any[]>('/members', { params: { limit: 200 } })
+    const mapped: MemberOption[] = (data || [])
+      .filter((m: any) => m && typeof m.id === 'number' && typeof m.handle === 'string')
+      .map((m: any) => ({
+        id: m.id,
+        handle: m.handle,
+        rating: m.rating ?? 0,
+      }))
+    allMembers.value = mapped
+    memberOptions.value = mapped
+  } catch (e) {
+    // 静默失败：搜索功能不可用但不影响主流程
+    console.error('加载成员列表失败', e)
+  }
+}
+
+function filterMembers(query: string) {
+  if (!query) {
+    memberOptions.value = allMembers.value
+    return
+  }
+  const q = query.toLowerCase()
+  memberOptions.value = allMembers.value.filter(
+    (m) => m.handle.toLowerCase().includes(q) || String(m.rating).includes(q),
+  )
+}
+
+function goMemberProfile(memberId: number | null) {
+  if (!memberId) return
+  router.push(`/profile/${memberId}`)
+}
+
+onMounted(() => {
+  loadMembers()
+})
 
 function onLogout() {
   auth.logout()
@@ -96,13 +164,14 @@ function onLogout() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-right: 40px;
+  margin-right: 24px;
 }
 
 .title {
   font-weight: 800;
   font-size: 19px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
   background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -148,6 +217,10 @@ function onLogout() {
   align-items: center;
   gap: 16px;
   margin-left: 20px;
+}
+
+.member-search {
+  width: 220px;
 }
 
 .user {

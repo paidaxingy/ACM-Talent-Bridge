@@ -56,7 +56,7 @@
                   {{ profile.contests_registered }}
                 </el-descriptions-item>
                 <el-descriptions-item label="PK 战绩">
-                  {{ profile.pk_wins }}W / {{ profile.pk_draws }}D / {{ profile.pk_losses }}L（共 {{ profile.pk_total }} 场）
+                  {{ profile.pk_wins }}W / {{ profile.pk_losses }}L（共 {{ profile.pk_total }} 场）
                 </el-descriptions-item>
                 <el-descriptions-item label="近10场 PK 评分变化">
                   {{ profile.rating_trend_last10 >= 0 ? '+' : '' }}{{ profile.rating_trend_last10 }}
