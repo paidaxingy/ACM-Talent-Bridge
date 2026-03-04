@@ -1,108 +1,85 @@
 <template>
-  <div>
-    <el-row :gutter="16">
-    <el-col :span="10">
-      <el-card>
-        <template #header>创建竞赛</template>
-        <el-form label-width="92px">
-          <el-form-item label="名称">
-            <el-input v-model="form.name" />
-          </el-form-item>
-          <el-form-item label="类型">
-            <el-select v-model="form.contest_type" style="width: 100%">
-              <el-option label="training" value="training" />
-              <el-option label="selection" value="selection" />
-              <el-option label="mock" value="mock" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="时间范围">
-            <el-date-picker
-              v-model="form.timeRange"
-              type="datetimerange"
-              range-separator="至"
-              start-placeholder="开始时间"
-              end-placeholder="结束时间"
-              style="width: 100%"
+  <div class="page">
+    <!-- 上：创建竞赛 -->
+    <el-card>
+      <template #header>创建竞赛</template>
+      <el-form label-width="92px">
+        <el-form-item label="名称">
+          <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="form.contest_type" style="width: 100%">
+            <el-option label="training" value="training" />
+            <el-option label="selection" value="selection" />
+            <el-option label="mock" value="mock" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="form.timeRange"
+            type="datetimerange"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="题目">
+          <el-select
+            v-model="form.problemIds"
+            multiple
+            filterable
+            placeholder="从已有题目中选择"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="p in problems"
+              :key="p.id"
+              :label="`#${p.id} ${p.title}`"
+              :value="p.id"
             />
-          </el-form-item>
-          <el-form-item label="题目">
-            <el-select
-              v-model="form.problemIds"
-              multiple
-              filterable
-              placeholder="从已有题目中选择"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="p in problems"
-                :key="p.id"
-                :label="`#${p.id} ${p.title}`"
-                :value="p.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="creating" @click="create">创建</el-button>
-          </el-form-item>
-        </el-form>
-      </el-card>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="creating" @click="create">创建</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-      <el-card style="margin-top: 16px">
-        <template #header>查看榜单</template>
-        <el-form label-width="92px">
-          <el-form-item label="Contest ID">
-            <el-input-number v-model="scoreContestId" :min="1" style="width: 100%" />
-          </el-form-item>
-          <el-form-item>
-            <el-button :loading="loadingScore" @click="loadScoreboard">查询</el-button>
-          </el-form-item>
-        </el-form>
-
-        <el-table v-if="scoreboard" :data="scoreboard.rows" size="small">
-          <el-table-column prop="member_id" label="成员" width="90" />
-          <el-table-column prop="handle" label="Handle" />
-          <el-table-column prop="solved" label="Solved" width="90" />
-          <el-table-column prop="penalty_minutes" label="Penalty" width="90" />
-        </el-table>
-      </el-card>
-    </el-col>
-
-    <el-col :span="14">
-      <el-card>
-        <template #header>
-          <div style="display:flex; align-items:center; justify-content:space-between">
-            <div>竞赛列表</div>
-            <el-button size="small" @click="load">刷新</el-button>
-          </div>
-        </template>
-        <el-table :data="contests" size="small" style="width:100%">
-          <el-table-column prop="id" label="ID" width="70" />
-          <el-table-column prop="name" label="名称" />
-          <el-table-column prop="contest_type" label="类型" width="100" />
-          <el-table-column prop="status" label="状态" width="100">
-            <template #default="{ row }">
-              {{ statusText(row.status) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="start_at" label="开始时间" width="180">
-            <template #default="{ row }">
-              {{ formatTime(row.start_at) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="end_at" label="结束时间" width="180">
-            <template #default="{ row }">
-              {{ formatTime(row.end_at) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="140">
-            <template #default="{ row }">
-              <el-button size="small" @click="openEditTime(row)">修改时间</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-    </el-col>
-    </el-row>
+    <!-- 下：竞赛列表 -->
+    <el-card style="margin-top: 16px">
+      <template #header>
+        <div class="list-header">
+          <div>竞赛列表</div>
+          <el-button size="small" @click="load">刷新</el-button>
+        </div>
+      </template>
+      <el-table :data="contests" size="small" style="width: 100%">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="名称" />
+        <el-table-column prop="contest_type" label="类型" width="90" />
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }">
+            {{ statusText(row.status) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="start_at" label="开始时间" width="150">
+          <template #default="{ row }">
+            {{ formatTime(row.start_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="end_at" label="结束时间" width="150">
+          <template #default="{ row }">
+            {{ formatTime(row.end_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button size="small" @click="openEditTime(row)">修改时间</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <el-dialog v-model="editDialogVisible" title="修改比赛时间" width="420px">
       <div v-if="!editingContest">请选择要编辑的比赛</div>
@@ -228,19 +205,6 @@ async function create() {
   }
 }
 
-const scoreContestId = ref(1)
-const scoreboard = ref<any | null>(null)
-const loadingScore = ref(false)
-async function loadScoreboard() {
-  loadingScore.value = true
-  try {
-    const { data } = await api.get(`/contests/${scoreContestId.value}/scoreboard`)
-    scoreboard.value = data
-  } finally {
-    loadingScore.value = false
-  }
-}
-
 load()
 loadProblems()
 
@@ -278,3 +242,18 @@ async function saveEditTime() {
   }
 }
 </script>
+
+<style scoped>
+.page {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+</style>
