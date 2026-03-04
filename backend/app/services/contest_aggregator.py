@@ -19,6 +19,8 @@ class ExternalContestItem:
     start_at: datetime  # stored as naive UTC
     duration_seconds: int
     contest_type: str | None = None
+    contest_phase: str | None = None
+    register_url: str | None = None
     raw: str | None = None
 
 
@@ -34,6 +36,35 @@ def _dt_utc_from_ts(seconds: int) -> datetime:
 
 class CodeforcesSource:
     source_name = "codeforces"
+
+    @staticmethod
+    def _build_registration_url(contest_id: str) -> str:
+        return f"https://codeforces.com/contestRegistration/{contest_id}"
+
+    def _detect_registration_open(self, client: httpx.Client, contest_id: str) -> bool:
+        """
+        Codeforces API does not expose registration-open status directly.
+        We probe the registration page and only expose register_url when
+        registration is actually open.
+        """
+        reg_url = self._build_registration_url(contest_id)
+        try:
+            response = client.get(
+                reg_url,
+                headers={"User-Agent": "ACM-Talent-Bridge/1.0"},
+                follow_redirects=True,
+                timeout=10,
+            )
+            response.raise_for_status()
+            text = response.text.lower()
+            # Known message shown when registration is not open.
+            if "no registration is opened now" in text:
+                return False
+            # Open registration pages contain explicit register action.
+            return "register for contest" in text or "register now" in text
+        except Exception:  # noqa: BLE001
+            # On probe failure, be conservative and do not expose register URL.
+            return False
 
     def fetch(self) -> list[ExternalContestItem]:
         url = "https://codeforces.com/api/contest.list?gym=false"
@@ -57,6 +88,14 @@ class CodeforcesSource:
             start = int(c.get("startTimeSeconds") or 0)
             dur = int(c.get("durationSeconds") or 0)
             ctype = c.get("type")
+            register_url = None
+            if phase == "BEFORE" and self._detect_registration_open(client, cid):
+                register_url = self._build_registration_url(cid)
+            enriched_raw = {
+                **c,
+                "contest_phase": phase,
+                "register_url": register_url,
+            }
             items.append(
                 ExternalContestItem(
                     source=self.source_name,
@@ -66,7 +105,9 @@ class CodeforcesSource:
                     start_at=_dt_utc_from_ts(start),
                     duration_seconds=dur,
                     contest_type=str(ctype) if ctype else None,
-                    raw=json.dumps(c, ensure_ascii=False),
+                    contest_phase=phase,
+                    register_url=register_url,
+                    raw=json.dumps(enriched_raw, ensure_ascii=False),
                 )
             )
         return items
@@ -169,5 +210,6 @@ class NowcoderSource:
 
 
 def default_sources() -> list[ContestSource]:
-    return [CodeforcesSource(), AtCoderSource(), NowcoderSource()]
+    # Current requirement: only aggregate Codeforces contests.
+    return [CodeforcesSource()]
 

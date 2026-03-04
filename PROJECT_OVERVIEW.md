@@ -1,0 +1,96 @@
+# ACM-Talent-Bridge 项目概述
+
+## 1. 项目定位
+
+ACM-Talent-Bridge 是一个面向 ACM 实验室的人才培养与就业辅助系统。  
+核心思路是把训练赛/竞赛/OJ 提交数据统一沉淀，然后围绕训练、竞赛组织和求职准备提供闭环能力。
+
+主要能力包括：
+- 竞赛与训练数据管理
+- PK 对抗与 Elo-like 竞技分
+- OJ 提交与异步判题
+- 外部赛历聚合（Codeforces/AtCoder）
+- AI 面试（MVP）
+- 成员能力画像与建议（规则版）
+
+## 2. 技术栈
+
+- 后端：FastAPI + SQLAlchemy
+- 数据库：MySQL 8
+- 缓存/队列：Redis
+- 异步任务：Celery（worker + beat）
+- 前端：Vue 3 + Vite + Element Plus
+- 判题：默认本地执行（Python3），可选 Docker 沙箱（Python3/C++17）
+
+## 3. 目录结构（关键）
+
+```text
+ACM-Talent-Bridge/
+  backend/                 # FastAPI + Celery
+    app/
+      api/                 # 路由
+      core/                # 配置/DB/Celery/安全
+      models/              # SQLAlchemy 模型
+      schemas/             # Pydantic schema
+      services/            # 领域服务（Elo/Judge/AI/画像/聚合）
+      tasks/               # Celery 任务
+  frontend/                # Vue 3 + Vite
+  docker/                  # judge runner 镜像等
+  scripts/                 # 脚本（如 smoke_test）
+  docker-compose.yml       # 一键启动
+```
+
+## 4. 核心运行链路（理解系统的最小路径）
+
+1. 前端调用后端 API 提交业务请求（如提交题解）。
+2. 后端落库并把判题任务投递给 Celery。
+3. Worker 异步执行判题并回写提交状态。
+4. 竞赛榜单、成员画像、PK 分数等由业务接口读取并聚合展示。
+
+## 5. 本地启动（推荐命令）
+
+### 5.1 Docker Compose（最快）
+
+在项目根目录：
+
+```bash
+cp backend/.env.example backend/.env
+docker compose up -d --build
+```
+
+验证：
+- `http://localhost:8000/docs`
+- `http://localhost:8000/api/v1/health`
+
+### 5.2 前端开发服务
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+默认前端地址：`http://localhost:5173`
+
+## 6. 高价值接口（快速联调）
+
+- 健康检查：`GET /api/v1/health`
+- 鉴权：`/api/v1/auth/*`
+- 成员：`/api/v1/members`
+- PK：`/api/v1/pk/*`
+- 题目/测试点：`/api/v1/problems`、`/api/v1/problems/{id}/testcases`
+- 提交：`/api/v1/submissions`
+- 竞赛：`/api/v1/contests`、`/api/v1/contests/{id}/scoreboard`
+- 外部赛历：`/api/v1/external/contests*`
+
+## 7. AI 协作约束（给智能体）
+
+- 优先最小改动，不做无关重构。
+- 修改前先阅读相关调用链路，避免跨模块误改。
+- 对外行为变更需说明影响面（接口、数据、任务调度）。
+- 涉及启动/运行问题时，先确认 MySQL/Redis/API/Worker 是否都在运行。
+- 优先给出可复制命令，路径使用绝对路径。
+
+## 8. 事实来源
+
+本文件内容来自项目 `README.md` 的当前实现说明与启动步骤。若与实际代码不一致，以代码与运行结果为准，并及时回写本文件。

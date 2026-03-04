@@ -3,7 +3,7 @@
     <h2 class="heading">登录账号</h2>
     <p class="subheading">使用账号密码登录，开始训练 / 参赛 / 提交代码。</p>
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="form">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="form" @submit.prevent="onSubmit">
       <el-form-item label="用户名" prop="username">
         <el-input v-model="form.username" autocomplete="username" placeholder="例如 acmer_01" />
       </el-form-item>
@@ -13,6 +13,7 @@
           :type="showPassword ? 'text' : 'password'"
           autocomplete="current-password"
           placeholder="请输入密码"
+          @keyup.enter="onSubmit"
         >
           <template #suffix>
             <el-icon @click="showPassword = !showPassword" class="eye">

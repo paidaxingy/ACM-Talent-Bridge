@@ -5,12 +5,17 @@
         <div>赛历聚合</div>
         <div>
           <el-select v-model="source" size="small" style="width:160px">
-            <el-option label="All" value="" />
             <el-option label="Codeforces" value="codeforces" />
-            <el-option label="AtCoder" value="atcoder" />
-            <el-option label="Nowcoder" value="nowcoder" />
           </el-select>
-          <el-button size="small" style="margin-left:8px" :loading="refreshing" @click="refresh">触发刷新</el-button>
+          <el-button
+            v-if="isAdmin"
+            size="small"
+            style="margin-left:8px"
+            :loading="refreshing"
+            @click="refresh"
+          >
+            触发刷新
+          </el-button>
           <el-button size="small" style="margin-left:8px" @click="load">加载</el-button>
         </div>
       </div>
@@ -23,7 +28,7 @@
       <el-table-column prop="duration_seconds" label="时长(s)" width="100" />
       <el-table-column label="链接" width="120">
         <template #default="{ row }">
-          <el-link :href="row.url" target="_blank">打开</el-link>
+          <el-link :href="linkUrl(row)" target="_blank">去注册</el-link>
         </template>
       </el-table-column>
     </el-table>
@@ -31,12 +36,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { api } from '../api/client'
+import { useAuthStore } from '../stores/auth'
 
-const source = ref('')
-const rows = ref<any[]>([])
+type ContestRow = {
+  source: string
+  external_id: string
+  url: string
+  contest_phase?: string | null
+  register_url?: string | null
+}
+
+const source = ref('codeforces')
+const rows = ref<ContestRow[]>([])
 const refreshing = ref(false)
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.role === 'admin')
+
+function linkUrl(row: ContestRow) {
+  if (row.source === 'codeforces' && row.external_id) {
+    return `https://codeforces.com/contestRegistration/${row.external_id}`
+  }
+  return row.register_url || row.url
+}
 
 async function refresh() {
   refreshing.value = true
@@ -48,8 +71,7 @@ async function refresh() {
 }
 
 async function load() {
-  const params: any = { upcoming_only: true }
-  if (source.value) params.source = source.value
+  const params: any = { upcoming_only: true, source: source.value }
   const { data } = await api.get('/external/contests', { params })
   rows.value = data
 }

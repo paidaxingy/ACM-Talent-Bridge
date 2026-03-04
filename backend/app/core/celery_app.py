@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import get_settings
 
@@ -25,9 +26,9 @@ celery.conf.update(
 
 # Periodic tasks (Celery Beat)
 celery.conf.beat_schedule = {
-    "aggregate-contests-every-10-min": {
+    "aggregate-contests-daily-cst-0005": {
         "task": "app.tasks.aggregate_contests",
-        "schedule": 600.0,
+        "schedule": crontab(minute=5, hour=0),
     }
 }
 

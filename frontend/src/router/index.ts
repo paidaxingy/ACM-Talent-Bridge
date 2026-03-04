@@ -4,6 +4,8 @@ import HomeView from '../views/HomeView.vue'
 import MyProfileView from '../views/MyProfileView.vue'
 import MembersView from '../views/MembersView.vue'
 import PKView from '../views/PKView.vue'
+import PKChallengeView from '../views/PKChallengeView.vue'
+import PKProblemView from '../views/PKProblemView.vue'
 import ProblemsView from '../views/ProblemsView.vue'
 import ContestsView from '../views/ContestsView.vue'
 import SubmissionsView from '../views/SubmissionsView.vue'
@@ -65,6 +67,21 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/teams',
     component: TeamsView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/pk',
+    component: PKChallengeView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/pk/problems/:id',
+    component: PKProblemView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/external',
+    component: ExternalContestsView,
     meta: { requiresAuth: true },
   },
 

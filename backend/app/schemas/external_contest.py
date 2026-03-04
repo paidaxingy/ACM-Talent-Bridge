@@ -16,6 +16,8 @@ class ExternalContestOut(BaseModel):
     start_at: datetime
     duration_seconds: int
     contest_type: str | None
+    contest_phase: str | None = None
+    register_url: str | None = None
     fetched_at: datetime
     updated_at: datetime
 

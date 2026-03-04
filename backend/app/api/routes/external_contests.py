@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, status
@@ -47,5 +48,35 @@ def list_external_contests(
         .scalars()
         .all()
     )
-    return contests
+    result: list[ExternalContestOut] = []
+    for contest in contests:
+        contest_phase: str | None = None
+        register_url: str | None = None
+        if contest.raw:
+            try:
+                raw_data = json.loads(contest.raw)
+                contest_phase = raw_data.get("contest_phase") or raw_data.get("phase")
+                register_url = raw_data.get("register_url")
+            except Exception:  # noqa: BLE001
+                contest_phase = None
+                register_url = None
+
+        result.append(
+            ExternalContestOut(
+                id=contest.id,
+                source=contest.source,
+                external_id=contest.external_id,
+                name=contest.name,
+                url=contest.url,
+                start_at=contest.start_at,
+                duration_seconds=contest.duration_seconds,
+                contest_type=contest.contest_type,
+                contest_phase=contest_phase,
+                register_url=register_url,
+                fetched_at=contest.fetched_at,
+                updated_at=contest.updated_at,
+            )
+        )
+
+    return result
 

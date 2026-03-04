@@ -10,6 +10,8 @@
         <el-menu-item index="/contests">竞赛列表</el-menu-item>
         <el-menu-item index="/submissions">我的提交</el-menu-item>
         <el-menu-item index="/teams">我的队伍</el-menu-item>
+        <el-menu-item index="/pk">PK 挑战</el-menu-item>
+        <el-menu-item index="/external">赛历聚合</el-menu-item>
 
         <el-menu-item-group v-if="isAdmin">
           <template #title>管理后台</template>
@@ -18,7 +20,6 @@
           <el-menu-item index="/admin/contests">竞赛管理</el-menu-item>
           <el-menu-item index="/admin/submissions">提交管理</el-menu-item>
           <el-menu-item index="/admin/pk">PK 对抗</el-menu-item>
-          <el-menu-item index="/admin/external">赛历聚合</el-menu-item>
           <el-menu-item index="/admin/ai">AI 面试</el-menu-item>
         </el-menu-item-group>
       </el-menu>
