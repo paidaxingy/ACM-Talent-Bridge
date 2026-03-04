@@ -1,6 +1,7 @@
 <template>
-  <div class="layout">
-    <el-card class="meta-card">
+  <div class="page">
+    <div class="layout">
+      <el-card class="meta-card">
       <template #header>
         <div class="meta-header">
           <div>
@@ -37,65 +38,66 @@
         <p class="meta-row"><strong>简介：</strong>{{ contest.description || '暂无描述' }}</p>
       </div>
       <div v-else class="loading-text">正在加载竞赛信息...</div>
-    </el-card>
+      </el-card>
 
-    <el-card class="main-card">
-      <el-tabs v-model="activeTab">
-        <el-tab-pane label="题目列表" name="problems">
-          <el-table :data="problems" size="small" style="width: 100%" @row-click="goProblem">
-            <el-table-column prop="problem_letter" label="#" width="80" />
-            <el-table-column prop="problem_title" label="题目" />
-            <el-table-column prop="problem_id" label="ID" width="100" />
-          </el-table>
-          <div v-if="!problems.length" class="empty">暂无题目，请联系管理员配置竞赛题目。</div>
-        </el-tab-pane>
-        <el-tab-pane label="队伍榜" name="scoreboard">
-          <div v-if="!scoreboard">
-            <el-button type="primary" size="small" :loading="loadingScoreboard" @click="loadScoreboard">
-              加载榜单
-            </el-button>
-          </div>
-          <el-table v-else :data="scoreboard.rows" size="small" style="width: 100%">
-            <el-table-column prop="team_id" label="队伍 ID" width="90" />
-            <el-table-column prop="team_name" label="队伍" />
-            <el-table-column prop="members" label="成员">
-              <template #default="{ row }">
-                <span v-for="(m, idx) in row.members" :key="m.user_id">
-                  {{ m.username }}<span v-if="idx < row.members.length - 1">、</span>
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="solved" label="Solved" width="90" />
-            <el-table-column prop="penalty_minutes" label="罚时" width="90" />
-          </el-table>
-        </el-tab-pane>
-      </el-tabs>
-    </el-card>
-  </div>
+      <el-card class="main-card">
+        <el-tabs v-model="activeTab">
+          <el-tab-pane label="题目列表" name="problems">
+            <el-table :data="problems" size="small" style="width: 100%" @row-click="goProblem">
+              <el-table-column prop="problem_letter" label="#" width="80" />
+              <el-table-column prop="problem_title" label="题目" />
+              <el-table-column prop="problem_id" label="ID" width="100" />
+            </el-table>
+            <div v-if="!problems.length" class="empty">暂无题目，请联系管理员配置竞赛题目。</div>
+          </el-tab-pane>
+          <el-tab-pane label="队伍榜" name="scoreboard">
+            <div v-if="!scoreboard">
+              <el-button type="primary" size="small" :loading="loadingScoreboard" @click="loadScoreboard">
+                加载榜单
+              </el-button>
+            </div>
+            <el-table v-else :data="scoreboard.rows" size="small" style="width: 100%">
+              <el-table-column prop="team_id" label="队伍 ID" width="90" />
+              <el-table-column prop="team_name" label="队伍" />
+              <el-table-column prop="members" label="成员">
+                <template #default="{ row }">
+                  <span v-for="(m, idx) in row.members" :key="m.user_id">
+                    {{ m.username }}<span v-if="idx < row.members.length - 1">、</span>
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="solved" label="Solved" width="90" />
+              <el-table-column prop="penalty_minutes" label="罚时" width="90" />
+            </el-table>
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
+    </div>
 
-  <el-dialog v-model="registerDialogVisible" title="报名参赛" width="440px">
-    <el-radio-group v-model="registerType" class="register-type-group">
-      <el-radio label="individual">个人参赛</el-radio>
-      <el-radio label="team">团队参赛</el-radio>
-    </el-radio-group>
-    <div v-if="registerType === 'team'" style="margin-top: 16px">
-      <div v-if="!myTeams.length" style="font-size: 13px; color: var(--el-text-color-secondary)">
-        你当前还没有队伍，请先在"我的队伍"页创建或加入队伍后再来报名。
-      </div>
-      <el-radio-group v-else v-model="selectedTeamId" class="team-radio-group">
-        <el-radio v-for="t in myTeams" :key="t.team_id" :label="t.team_id">
-          {{ t.team_name || `队伍 #${t.team_id}` }}（ID: {{ t.team_id }}）
-        </el-radio>
+    <el-dialog v-model="registerDialogVisible" title="报名参赛" width="440px">
+      <el-radio-group v-model="registerType" class="register-type-group">
+        <el-radio label="individual">个人参赛</el-radio>
+        <el-radio label="team">团队参赛</el-radio>
       </el-radio-group>
-    </div>
-    <div v-else style="margin-top: 16px; font-size: 13px; color: var(--el-text-color-secondary)">
-      个人参赛无需组队，可直接参加比赛。
-    </div>
-    <template #footer>
-      <el-button @click="registerDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="registering" @click="onRegisterConfirm">确认报名</el-button>
-    </template>
-  </el-dialog>
+      <div v-if="registerType === 'team'" style="margin-top: 16px">
+        <div v-if="!myTeams.length" style="font-size: 13px; color: var(--el-text-color-secondary)">
+          你当前还没有队伍，请先在"我的队伍"页创建或加入队伍后再来报名。
+        </div>
+        <el-radio-group v-else v-model="selectedTeamId" class="team-radio-group">
+          <el-radio v-for="t in myTeams" :key="t.team_id" :label="t.team_id">
+            {{ t.team_name || `队伍 #${t.team_id}` }}（ID: {{ t.team_id }}）
+          </el-radio>
+        </el-radio-group>
+      </div>
+      <div v-else style="margin-top: 16px; font-size: 13px; color: var(--el-text-color-secondary)">
+        个人参赛无需组队，可直接参加比赛。
+      </div>
+      <template #footer>
+        <el-button @click="registerDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="registering" @click="onRegisterConfirm">确认报名</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -207,7 +209,7 @@ function statusTagType(status?: ContestDetail['contest_status']) {
     case 'ended':
       return 'warning'
     default:
-      return 'default'
+      return 'info'
   }
 }
 
@@ -357,6 +359,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.page {
+  width: 100%;
+}
+
 .layout {
   display: flex;
   flex-direction: column;

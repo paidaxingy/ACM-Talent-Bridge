@@ -1,5 +1,6 @@
 <template>
-  <div class="page">
+  <div class="page-wrap">
+    <div class="page">
     <div class="left">
       <el-card class="statement-card">
         <template #header>
@@ -106,23 +107,24 @@
         </div>
       </el-card>
     </div>
-  </div>
-
-  <el-dialog v-model="codeDialogVisible" title="提交详情" width="720px">
-    <div v-if="selectedSubmission">
-      <div class="meta-line">
-        <el-tag size="small">#{{ selectedSubmission.id }}</el-tag>
-        <span style="margin-left:8px">语言：{{ selectedSubmission.language }}</span>
-        <span style="margin-left:12px">Verdict：{{ selectedSubmission.verdict || '-' }}</span>
-        <span style="margin-left:12px">耗时：{{ displayNumber(selectedSubmission.time_ms) }} ms</span>
-        <span style="margin-left:12px">内存：{{ displayNumber(selectedSubmission.memory_kb) }} KB</span>
-      </div>
-      <el-input v-model="selectedSubmission.code" type="textarea" :rows="16" readonly class="code-view" />
     </div>
-    <template #footer>
-      <el-button @click="codeDialogVisible = false">关闭</el-button>
-    </template>
-  </el-dialog>
+
+    <el-dialog v-model="codeDialogVisible" title="提交详情" width="720px">
+      <div v-if="selectedSubmission">
+        <div class="meta-line">
+          <el-tag size="small">#{{ selectedSubmission.id }}</el-tag>
+          <span style="margin-left:8px">语言：{{ selectedSubmission.language }}</span>
+          <span style="margin-left:12px">Verdict：{{ selectedSubmission.verdict || '-' }}</span>
+          <span style="margin-left:12px">耗时：{{ displayNumber(selectedSubmission.time_ms) }} ms</span>
+          <span style="margin-left:12px">内存：{{ displayNumber(selectedSubmission.memory_kb) }} KB</span>
+        </div>
+        <el-input v-model="selectedSubmission.code" type="textarea" :rows="16" readonly class="code-view" />
+      </div>
+      <template #footer>
+        <el-button @click="codeDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -322,6 +324,10 @@ function displayNumber(val: number | null): string {
 </script>
 
 <style scoped>
+.page-wrap {
+  width: 100%;
+}
+
 .page {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 2fr);

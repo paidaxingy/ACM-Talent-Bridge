@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <el-card class="main-card">
+    <el-card class="main-card" shadow="hover">
       <template #header>
         <div class="header">
           <div>
@@ -14,7 +14,7 @@
       <div v-if="profile">
         <el-row :gutter="16">
           <el-col :span="8">
-            <el-card class="block-card">
+            <el-card class="block-card" shadow="hover">
               <div class="block-title">基础信息</div>
               <el-descriptions :column="1" size="small" border>
                 <el-descriptions-item label="Handle">{{ profile.handle }}</el-descriptions-item>
@@ -46,7 +46,7 @@
           </el-col>
 
           <el-col :span="8">
-            <el-card class="block-card">
+            <el-card class="block-card" shadow="hover">
               <div class="block-title">训练 & PK</div>
               <el-descriptions :column="1" size="small" border>
                 <el-descriptions-item label="提交">
@@ -66,7 +66,7 @@
           </el-col>
 
           <el-col :span="8">
-            <el-card class="block-card">
+            <el-card class="block-card" shadow="hover">
               <div class="block-title">维度评分</div>
               <div class="metric">
                 <span>竞技强度</span>
@@ -90,7 +90,7 @@
 
         <el-row :gutter="16" style="margin-top: 16px">
           <el-col :span="12">
-            <el-card class="block-card">
+            <el-card class="block-card" shadow="hover">
               <div class="block-title">推荐方向</div>
               <div v-if="profile.recommended_directions.length">
                 <el-alert
@@ -108,7 +108,7 @@
           </el-col>
 
           <el-col :span="12">
-            <el-card class="block-card">
+            <el-card class="block-card" shadow="hover">
               <div class="block-title">提升计划</div>
               <el-timeline v-if="profile.improvement_plan.length">
                 <el-timeline-item v-for="(p, idx) in profile.improvement_plan" :key="idx">
@@ -286,13 +286,20 @@ onBeforeUnmount(() => {
 }
 
 .block-card {
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 8px;
+}
+
+.block-card:hover {
+  transform: translateY(-2px);
 }
 
 .block-title {
   font-weight: 600;
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: #303133;
 }
 
 .metric {

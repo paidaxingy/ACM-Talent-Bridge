@@ -8,7 +8,7 @@
         </div>
         <div class="actions">
           <el-select v-model="statusFilter" size="small" style="width: 150px" clearable placeholder="按状态筛选">
-            <el-option label="全部" :value="undefined" />
+            <el-option label="全部" value="" />
             <el-option label="未开始" value="upcoming" />
             <el-option label="进行中" value="running" />
             <el-option label="已结束" value="ended" />
@@ -67,7 +67,7 @@ const router = useRouter()
 const contests = ref<Contest[]>([])
 const loading = ref(false)
 const keyword = ref('')
-const statusFilter = ref<'upcoming' | 'running' | 'ended' | undefined>()
+const statusFilter = ref<'' | 'upcoming' | 'running' | 'ended'>('')
 
 const filteredContests = computed(() => {
   return contests.value.filter(c => {
@@ -118,9 +118,9 @@ function statusTagType(status: Contest['contest_status'] | undefined) {
     case 'ended':
       return 'warning'
     case 'draft':
-      return 'default'
+      return 'info'
     default:
-      return 'default'
+      return 'info'
   }
 }
 

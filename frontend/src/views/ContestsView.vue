@@ -1,5 +1,6 @@
 <template>
-  <el-row :gutter="16">
+  <div>
+    <el-row :gutter="16">
     <el-col :span="10">
       <el-card>
         <template #header>创建竞赛</template>
@@ -101,32 +102,33 @@
         </el-table>
       </el-card>
     </el-col>
-  </el-row>
+    </el-row>
 
-  <el-dialog v-model="editDialogVisible" title="修改比赛时间" width="420px">
-    <div v-if="!editingContest">请选择要编辑的比赛</div>
-    <div v-else>
-      <div style="margin-bottom:8px; font-size:13px">
-        比赛：<strong>#{{ editingContest.id }} {{ editingContest.name }}</strong>
+    <el-dialog v-model="editDialogVisible" title="修改比赛时间" width="420px">
+      <div v-if="!editingContest">请选择要编辑的比赛</div>
+      <div v-else>
+        <div style="margin-bottom:8px; font-size:13px">
+          比赛：<strong>#{{ editingContest.id }} {{ editingContest.name }}</strong>
+        </div>
+        <el-form label-width="88px">
+          <el-form-item label="时间范围">
+            <el-date-picker
+              v-model="editTimeRange"
+              type="datetimerange"
+              range-separator="至"
+              start-placeholder="开始时间"
+              end-placeholder="结束时间"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </el-form>
       </div>
-      <el-form label-width="88px">
-        <el-form-item label="时间范围">
-          <el-date-picker
-            v-model="editTimeRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            style="width: 100%"
-          />
-        </el-form-item>
-      </el-form>
-    </div>
-    <template #footer>
-      <el-button @click="editDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="savingEdit" @click="saveEditTime">保存</el-button>
-    </template>
-  </el-dialog>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingEdit" @click="saveEditTime">保存</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">

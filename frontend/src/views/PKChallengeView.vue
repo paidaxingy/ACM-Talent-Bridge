@@ -5,7 +5,14 @@
         <template #header>发起 PK 挑战</template>
         <el-form label-width="100px">
           <el-form-item label="挑战对象">
-            <el-select v-model="selectedMemberId" placeholder="选择要挑战的成员" style="width: 100%">
+            <el-select
+              v-model="selectedMemberId"
+              placeholder="输入用户名搜索挑战对象"
+              style="width: 100%"
+              filterable
+              clearable
+              default-first-option
+            >
               <el-option
                 v-for="m in members"
                 :key="m.id"

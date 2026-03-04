@@ -1,5 +1,6 @@
 <template>
-  <el-card>
+  <div class="page">
+    <el-card>
     <template #header>
       <div class="header">
         <div>
@@ -28,7 +29,7 @@
             style="width: 140px; margin-left: 8px"
             clearable
           >
-            <el-option label="全部状态" :value="undefined" />
+            <el-option label="全部状态" value="" />
             <el-option label="评测中" value="pending" />
             <el-option label="完成" value="done" />
           </el-select>
@@ -61,23 +62,24 @@
     <div v-if="!rows.length && !loading" class="empty">
       暂无提交记录，去任意题面页写一发代码试试吧～
     </div>
-  </el-card>
+    </el-card>
 
-  <el-dialog v-model="codeDialogVisible" title="提交详情" width="720px">
-    <div v-if="selectedSubmission">
-      <div class="meta-line">
-        <el-tag size="small">#{{ selectedSubmission.id }}</el-tag>
-        <span style="margin-left:8px">语言：{{ selectedSubmission.language }}</span>
-        <span style="margin-left:12px">Verdict：{{ selectedSubmission.verdict || '-' }}</span>
-        <span style="margin-left:12px">耗时：{{ displayNumber(selectedSubmission.time_ms) }} ms</span>
-        <span style="margin-left:12px">内存：{{ displayNumber(selectedSubmission.memory_kb) }} KB</span>
+    <el-dialog v-model="codeDialogVisible" title="提交详情" width="720px">
+      <div v-if="selectedSubmission">
+        <div class="meta-line">
+          <el-tag size="small">#{{ selectedSubmission.id }}</el-tag>
+          <span style="margin-left:8px">语言：{{ selectedSubmission.language }}</span>
+          <span style="margin-left:12px">Verdict：{{ selectedSubmission.verdict || '-' }}</span>
+          <span style="margin-left:12px">耗时：{{ displayNumber(selectedSubmission.time_ms) }} ms</span>
+          <span style="margin-left:12px">内存：{{ displayNumber(selectedSubmission.memory_kb) }} KB</span>
+        </div>
+        <el-input v-model="selectedSubmission.code" type="textarea" :rows="16" readonly class="code-view" />
       </div>
-      <el-input v-model="selectedSubmission.code" type="textarea" :rows="16" readonly class="code-view" />
-    </div>
-    <template #footer>
-      <el-button @click="codeDialogVisible = false">关闭</el-button>
-    </template>
-  </el-dialog>
+      <template #footer>
+        <el-button @click="codeDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -104,11 +106,11 @@ const selectedSubmission = ref<SubmissionRow | null>(null)
 const filters = reactive<{
   contestId?: string
   problemId?: string
-  status?: 'pending' | 'done'
+  status: '' | 'pending' | 'done'
 }>({
   contestId: '',
   problemId: '',
-  status: undefined,
+  status: '',
 })
 
 async function load() {
@@ -139,6 +141,10 @@ load()
 </script>
 
 <style scoped>
+.page {
+  width: 100%;
+}
+
 .header {
   display: flex;
   align-items: center;
