@@ -7,9 +7,11 @@ from sqlalchemy.orm import selectinload
 
 from app.core.celery_app import celery
 from app.core.db import SessionLocal
+from app.models.member import Member
 from app.models.interview import InterviewAnswer, InterviewQuestion, InterviewSession
 from app.services.ai_provider import get_ai_provider
 from app.services.member_profile import build_member_profile_summary
+from app.services.resume_parser import extract_resume_text
 
 
 @celery.task(name="app.tasks.generate_interview_questions")
@@ -31,10 +33,13 @@ def generate_interview_questions(session_id: int) -> dict:
 
         try:
             profile = build_member_profile_summary(db, session.member_id).to_dict()
+            member = db.get(Member, session.member_id)
+            resume_text = extract_resume_text(member) if member else None
             qs = provider.generate_questions(
                 profile,
                 num_questions=session.num_questions,
                 target_role=session.target_role,
+                resume_text=resume_text,
             )
 
             # Ensure idempotency: if questions already exist, do not duplicate
@@ -51,6 +56,7 @@ def generate_interview_questions(session_id: int) -> dict:
                         topic=q.topic,
                         difficulty=q.difficulty,
                         question=q.question,
+                        standard_answer=q.standard_answer,
                     )
                 )
 

@@ -8,7 +8,8 @@ export function apiBaseUrl(): string {
 
 export const api = axios.create({
   baseURL: apiBaseUrl() + '/api/v1',
-  timeout: 20000,
+  // DeepSeek 响应偏慢时避免前端过早超时（3 分钟）
+  timeout: 180000,
 })
 
 // 请求拦截：自动附加 Bearer Token

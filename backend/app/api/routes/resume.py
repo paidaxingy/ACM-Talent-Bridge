@@ -30,11 +30,12 @@ def upload_resume(
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    if file.content_type not in {"application/pdf", "application/msword",
-                                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}:
-        raise HTTPException(status_code=400, detail="Only PDF/DOC/DOCX files are allowed")
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
-    ext = file.filename.split(".")[-1] if "." in file.filename else ""
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+    if ext != "pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     filename = f"member_{member.id}_{hash(file.filename)}_{os.urandom(4).hex()}.{ext}"
     filepath = Path(settings.resumes_dir) / filename
     filepath.parent.mkdir(parents=True, exist_ok=True)

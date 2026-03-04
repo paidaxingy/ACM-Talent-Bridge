@@ -41,8 +41,8 @@ ACM-Talent-Bridge/
 - **竞赛管理（MVP）**：创建竞赛、配置题目、报名、榜单（基于提交结果计算 ACM 风格）
 - **题库 + 测试用例**：题目与测试点维护
 - **OJ 提交 + 异步评测**：提交后 Celery 异步判题并回写结果；支持 rejudge
-- **赛历聚合**：Codeforces / AtCoder（Nowcoder 适配位预留），支持接口触发刷新与定时刷新
-- **AI 面试（MVP）**：自动生成题目、回答异步评估、结构化反馈（默认 Mock Provider；预留 OpenAI-compatible）
+- **赛历聚合**：当前默认聚合 Codeforces，支持接口触发刷新与定时刷新
+- **AI 面试（聊天式）**：学生侧对话面试、逐轮评分/标准答案、会话总分；支持 DeepSeek（OpenAI 兼容）
 - **能力画像/就业建议（规则版）**：融合 rating/PK/提交/面试评分，输出方向建议与提升计划
 - **认证占位（JWT）**：注册/登录/获取当前用户（当前业务接口未强制鉴权，后续可逐步加 RBAC）
 
@@ -203,7 +203,13 @@ JUDGE_WORKSPACE_VOLUME=judge_workspace
 - **Contests**：`/api/v1/contests`、榜单：`GET /api/v1/contests/{id}/scoreboard`
 - **Submissions**：`POST /api/v1/submissions`、`POST /api/v1/submissions/{id}/rejudge`
 - **External contests**：列表：`GET /api/v1/external/contests`、刷新：`POST /api/v1/external/contests/refresh`
-- **AI interviews**：创建 session：`POST /api/v1/ai/interviews/sessions`，题目：`GET /api/v1/ai/interviews/sessions/{id}/questions`
+- **AI interviews（聊天式）**：
+  - 开始：`POST /api/v1/ai/interviews/chat/sessions/start`
+  - 回复：`POST /api/v1/ai/interviews/chat/sessions/{id}/reply`
+  - 消息：`GET /api/v1/ai/interviews/chat/sessions/{id}/messages`
+  - 汇总：`GET /api/v1/ai/interviews/chat/sessions/{id}/summary`
+  - 结束：`POST /api/v1/ai/interviews/chat/sessions/{id}/finish`
+  - 说明：开始前要求学生先上传 **PDF** 简历
 
 ---
 
@@ -214,4 +220,19 @@ JUDGE_WORKSPACE_VOLUME=judge_workspace
 - **AI Provider**
   - 默认：`AI_PROVIDER=mock`
   - OpenAI-compatible：设置 `AI_PROVIDER` 非 `mock`，并配置 `AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL`
+  - DeepSeek（推荐）：
+    - `AI_PROVIDER=openai`
+    - `AI_BASE_URL=https://api.deepseek.com`
+    - `AI_API_KEY=<你的 DeepSeek Key>`
+    - `AI_MODEL=deepseek-chat`
+
+---
+
+## AI 面试注意事项（最新）
+
+- **不需要预先选择轮次**：聊天会话以“用户手动结束”为主（前端点击“结束面试”）。
+- **提问策略**：优先围绕简历项目/职责/技术栈，同时允许延展到相关基础知识（如简历提到 C++，会追问 C++ 基础与工程实践）。
+- **简历解析**：PDF 先走文本提取，文本质量不足时自动 OCR（中文+英文）兜底；若仍不可读，会返回“请上传可复制文字的 PDF”。
+- **超时策略**：后端调用 AI 超时上调为 90s；前端 API 请求超时上调为 180s（3 分钟），减少 DeepSeek 慢响应导致的前端超时。
+- **Docker 持久化**：`docker-compose.yml` 已挂载 `./backend/resumes:/app/resumes`，重建 `api/worker` 后简历文件仍保留在宿主机 `backend/resumes`。
 

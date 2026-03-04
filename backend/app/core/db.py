@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Generator
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
@@ -70,6 +70,18 @@ def init_db() -> None:
     import app.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+
+    # Lightweight compatibility migration for MVP environments still using create_all.
+    # create_all won't ALTER existing tables, so we patch required interview columns here.
+    try:
+        inspector = inspect(engine)
+        columns = {c["name"] for c in inspector.get_columns("interview_questions")}
+        if "standard_answer" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE interview_questions ADD COLUMN standard_answer TEXT NULL"))
+    except Exception:
+        # Best-effort only; should not block startup in constrained environments.
+        pass
 
     # MVP convenience: ensure there is at least one default Lab so admin pages
     # (Problems/Contests) don't require users to manually create and remember a lab_id.

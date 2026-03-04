@@ -9,8 +9,8 @@ ACM-Talent-Bridge 是一个面向 ACM 实验室的人才培养与就业辅助系
 - 竞赛与训练数据管理
 - PK 对抗与 Elo-like 竞技分
 - OJ 提交与异步判题
-- 外部赛历聚合（Codeforces/AtCoder）
-- AI 面试（MVP）
+- 外部赛历聚合（当前默认 Codeforces）
+- AI 面试（聊天式，学生侧）
 - 成员能力画像与建议（规则版）
 
 ## 2. 技术栈
@@ -82,15 +82,32 @@ npm run dev
 - 提交：`/api/v1/submissions`
 - 竞赛：`/api/v1/contests`、`/api/v1/contests/{id}/scoreboard`
 - 外部赛历：`/api/v1/external/contests*`
+- AI 面试（聊天式）：
+  - `POST /api/v1/ai/interviews/chat/sessions/start`
+  - `POST /api/v1/ai/interviews/chat/sessions/{id}/reply`
+  - `GET /api/v1/ai/interviews/chat/sessions/{id}/messages`
+  - `GET /api/v1/ai/interviews/chat/sessions/{id}/summary`
+  - `POST /api/v1/ai/interviews/chat/sessions/{id}/finish`
 
-## 7. AI 协作约束（给智能体）
+## 7. AI 面试现状（给协作 AI 的关键上下文）
+
+- 学生必须先上传 **PDF 简历** 才能开始会话。
+- 会话模式为**聊天式**：问一轮、答一轮，用户手动结束为主，不需要预先选择轮次。
+- 出题策略：优先基于简历项目/技术栈，同时允许延展到相关基础知识追问（八股）。
+- 每轮返回：分数、标准答案、优缺点与建议；会话结束可查看总分汇总。
+- PDF 文本抽取支持 OCR 兜底（中文+英文），扫描件质量不足时会返回明确错误提示。
+- AI 供应商通过 OpenAI 兼容接口接入（推荐 DeepSeek）。
+- 前端请求超时：180 秒；后端 AI 调用超时：90 秒。
+
+## 8. AI 协作约束（给智能体）
 
 - 优先最小改动，不做无关重构。
 - 修改前先阅读相关调用链路，避免跨模块误改。
 - 对外行为变更需说明影响面（接口、数据、任务调度）。
 - 涉及启动/运行问题时，先确认 MySQL/Redis/API/Worker 是否都在运行。
+- Docker 环境下简历目录已持久化到宿主机：`/home/yzt/workspace/ACM-Talent-Bridge/backend/resumes`。
 - 优先给出可复制命令，路径使用绝对路径。
 
-## 8. 事实来源
+## 9. 事实来源
 
 本文件内容来自项目 `README.md` 的当前实现说明与启动步骤。若与实际代码不一致，以代码与运行结果为准，并及时回写本文件。

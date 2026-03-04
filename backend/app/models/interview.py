@@ -34,6 +34,10 @@ class InterviewSession(Base):
         back_populates="session",
         cascade="all, delete-orphan",
     )
+    chat_messages: Mapped[list["InterviewChatMessage"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
 
 
 class InterviewQuestion(Base):
@@ -52,6 +56,7 @@ class InterviewQuestion(Base):
     topic: Mapped[str | None] = mapped_column(String(64), default=None)
     difficulty: Mapped[str | None] = mapped_column(String(16), default=None)  # easy/medium/hard
     question: Mapped[str] = mapped_column(Text)
+    standard_answer: Mapped[str | None] = mapped_column(Text, default=None)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -97,4 +102,33 @@ class InterviewAnswer(Base):
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
     question_ref = relationship("InterviewQuestion", back_populates="answers")
+
+
+class InterviewChatMessage(Base):
+    __tablename__ = "interview_chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    round_no: Mapped[int] = mapped_column(Integer, default=1)
+    role: Mapped[str] = mapped_column(String(16))  # interviewer/candidate
+    content: Mapped[str] = mapped_column(Text)
+    difficulty: Mapped[str | None] = mapped_column(String(16), default=None)  # easy/medium/hard
+
+    # Candidate-side evaluated fields
+    score: Mapped[int | None] = mapped_column(Integer, default=None)
+    standard_answer: Mapped[str | None] = mapped_column(Text, default=None)
+    strengths: Mapped[str | None] = mapped_column(Text, default=None)
+    weaknesses: Mapped[str | None] = mapped_column(Text, default=None)
+    suggestions: Mapped[str | None] = mapped_column(Text, default=None)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    session = relationship("InterviewSession", back_populates="chat_messages")
 

@@ -84,6 +84,11 @@ const routes: RouteRecordRaw[] = [
     component: ExternalContestsView,
     meta: { requiresAuth: true },
   },
+  {
+    path: '/ai/interview',
+    component: AIInterviewView,
+    meta: { requiresAuth: true },
+  },
 
   // 管理端：暂时保留原有 CRUD 路由，整体收纳到 /admin/*
   {
