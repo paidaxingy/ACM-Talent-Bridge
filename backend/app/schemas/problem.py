@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.submission import normalize_language
 
 
 class ProblemCreate(BaseModel):
@@ -39,6 +41,26 @@ class ProblemOut(BaseModel):
     updated_at: datetime
 
 
+class ProblemRunRequest(BaseModel):
+    language: str = Field(min_length=1, max_length=16)
+    code: str = Field(min_length=1)
+    input: str = Field(default="")
+
+    @field_validator("language")
+    @classmethod
+    def _normalize_lang(cls, value: str) -> str:
+        return normalize_language(value)
+
+
+class ProblemRunResult(BaseModel):
+    verdict: str
+    stdout: str = ""
+    stderr: str = ""
+    time_ms: int | None = None
+    memory_kb: int | None = None
+    message: str | None = None
+
+
 class TestcaseCreate(BaseModel):
     input_data: str
     expected_output: str
@@ -56,4 +78,3 @@ class TestcaseOut(BaseModel):
     is_sample: bool
     sort_order: int
     created_at: datetime
-

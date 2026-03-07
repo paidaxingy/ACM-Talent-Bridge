@@ -5,7 +5,7 @@
         <template #header>
           <div class="header">
             <div class="title">我的队伍</div>
-            <div class="subtitle">参考牛客团队页：支持创建 / 加入 / 退出队伍。</div>
+            <div class="subtitle">在这里创建队伍、加入队伍或管理自己的队伍成员。</div>
           </div>
         </template>
 

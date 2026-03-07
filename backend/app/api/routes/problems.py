@@ -6,16 +6,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.deps import require_admin
+from app.core.deps import get_current_user, require_admin
 from app.models.lab import Lab
 from app.models.problem import Problem, Testcase
 from app.schemas.problem import (
     ProblemCreate,
     ProblemOut,
+    ProblemRunRequest,
+    ProblemRunResult,
     ProblemUpdate,
     TestcaseCreate,
     TestcaseOut,
 )
+from app.services.code_runner import run_code_once
 
 router = APIRouter(prefix="/problems")
 
@@ -24,7 +27,6 @@ router = APIRouter(prefix="/problems")
 def create_problem(payload: ProblemCreate, db: Session = Depends(get_db), _: object = Depends(require_admin)):
     lab_id = payload.lab_id
     if lab_id is None:
-        # 产品层去掉 Lab：默认挂到第一个（启动时会自动确保存在）
         lab = db.execute(select(Lab).order_by(Lab.id.asc()).limit(1)).scalars().first()
         if not lab:
             raise HTTPException(status_code=500, detail="Default lab not initialized")
@@ -73,6 +75,34 @@ def get_problem(problem_id: int, db: Session = Depends(get_db)):
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
     return problem
+
+
+@router.post("/{problem_id}/run", response_model=ProblemRunResult)
+def run_problem(
+    problem_id: int,
+    payload: ProblemRunRequest,
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_user),
+):
+    problem = db.get(Problem, problem_id)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    result = run_code_once(
+        code=payload.code,
+        language=payload.language,
+        stdin_text=payload.input,
+        time_limit_ms=problem.time_limit_ms,
+        memory_limit_mb=problem.memory_limit_mb,
+    )
+    return ProblemRunResult(
+        verdict=result.verdict,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        time_ms=result.time_ms,
+        memory_kb=result.memory_kb,
+        message=result.message,
+    )
 
 
 @router.patch("/{problem_id}", response_model=ProblemOut)
@@ -135,7 +165,7 @@ def add_testcase(
     db.add(tc)
     try:
         db.commit()
-    except IntegrityError:  # noqa: PERF203 (MVP)
+    except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="sort_order already exists for this problem")
 
@@ -163,7 +193,6 @@ def delete_testcase(
     db: Session = Depends(get_db),
     _: object = Depends(require_admin),
 ):
-    # Ensure problem exists (more user-friendly 404)
     if not db.get(Problem, problem_id):
         raise HTTPException(status_code=404, detail="Problem not found")
 
@@ -174,4 +203,3 @@ def delete_testcase(
     db.delete(tc)
     db.commit()
     return None
-

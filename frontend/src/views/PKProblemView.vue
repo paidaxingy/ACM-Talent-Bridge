@@ -4,8 +4,8 @@
       <el-page-header @back="goBack">
         <template #content>
           <div>
-            <div class="eyebrow">PK Match</div>
-            <span class="title">{{ problem?.problem_title || '加载中...' }}</span>
+            <div class="eyebrow">实时对战</div>
+            <span class="title">{{ problem?.title || problem?.problem_title || '加载中...' }}</span>
           </div>
         </template>
         <template #extra>
@@ -25,7 +25,7 @@
           <template #header>
             <div class="card-header">
               <span>题目 #{{ problemId }}</span>
-              <el-tag size="small" type="info">PK 专用</el-tag>
+              <el-tag size="small" type="info">对战题目</el-tag>
             </div>
           </template>
 
@@ -40,17 +40,17 @@
             <p class="paragraph" v-if="problem.output_desc">{{ problem.output_desc }}</p>
 
             <h3 class="section-title" v-if="samples.length">样例</h3>
-            <el-row v-for="s in samples" :key="s.id" :gutter="12" class="sample">
+            <el-row v-for="sample in samples" :key="sample.id" :gutter="12" class="sample">
               <el-col :xs="24" :md="12">
                 <div class="sample-block">
                   <div class="sample-label">样例输入</div>
-                  <pre>{{ s.input }}</pre>
+                  <pre>{{ sample.input }}</pre>
                 </div>
               </el-col>
               <el-col :xs="24" :md="12">
                 <div class="sample-block">
                   <div class="sample-label">样例输出</div>
-                  <pre>{{ s.output }}</pre>
+                  <pre>{{ sample.output }}</pre>
                 </div>
               </el-col>
             </el-row>
@@ -65,7 +65,7 @@
             <div class="card-header">
               <div>
                 <div class="editor-title">代码编辑</div>
-                <div class="editor-subtitle">支持 Python 3 / C++ 17，提交后会自动刷新 PK 状态。</div>
+                <div class="editor-subtitle">支持 Python 3 和 C++ 17，可先运行测试，再正式提交。</div>
               </div>
               <el-select v-model="language" class="language-select" size="small">
                 <el-option label="Python 3" value="python3" />
@@ -85,11 +85,57 @@
               />
             </el-form-item>
             <el-form-item>
+              <el-input
+                v-model="runInput"
+                type="textarea"
+                :rows="5"
+                class="code-area"
+                placeholder="自定义输入，例如：1 2"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-input
+                v-model="expectedOutput"
+                type="textarea"
+                :rows="5"
+                class="code-area"
+                placeholder="预期结果，例如：3"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button :loading="running" @click="onRun">本地运行</el-button>
               <el-button type="primary" :loading="submitting" @click="onSubmit">
                 提交 (Ctrl+Enter)
               </el-button>
             </el-form-item>
           </el-form>
+        </el-card>
+
+        <el-card class="debug-card">
+          <template #header>
+            <div class="card-header">
+              <span>本地运行结果</span>
+              <div v-if="runResult" class="run-meta">
+                <el-tag :type="getRunVerdictType(runResult.verdict)" size="small">{{ runResult.verdict }}</el-tag>
+                <el-tag v-if="compareStatus" :type="compareStatus.matched ? 'success' : 'danger'" size="small">
+                  {{ compareStatus.matched ? '与预期一致' : '与预期不一致' }}
+                </el-tag>
+                <span class="time">{{ displayNumber(runResult.time_ms) }} ms</span>
+              </div>
+            </div>
+          </template>
+          <div v-if="runResult">
+            <div v-if="runResult.message" class="run-message">{{ runResult.message }}</div>
+            <div class="run-block">
+              <div class="sample-label">运行输出</div>
+              <pre class="run-pre">{{ displayCombinedRunText(runResult) }}</pre>
+            </div>
+            <div class="run-block">
+              <div class="sample-label">预期结果</div>
+              <pre class="run-pre">{{ displayExpectedText(expectedOutput) }}</pre>
+            </div>
+          </div>
+          <div v-else class="empty-subs">点击“本地运行”后查看输出、报错和耗时。</div>
         </el-card>
 
         <el-card class="status-card">
@@ -170,7 +216,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api/client'
@@ -180,13 +226,30 @@ const router = useRouter()
 
 const problemId = Number(route.params.id)
 const pkChallengeIdRaw = route.query.challenge_id
-const pkChallengeId = pkChallengeIdRaw ? (Array.isArray(pkChallengeIdRaw) ? Number(pkChallengeIdRaw[0]) : Number(pkChallengeIdRaw)) : null
+const pkChallengeId = pkChallengeIdRaw
+  ? Array.isArray(pkChallengeIdRaw)
+    ? Number(pkChallengeIdRaw[0])
+    : Number(pkChallengeIdRaw)
+  : null
+
+interface RunResult {
+  verdict: string
+  stdout: string
+  stderr: string
+  time_ms: number | null
+  memory_kb: number | null
+  message: string | null
+}
 
 const problem = ref<any>(null)
 const samples = ref<any[]>([])
 const pkChallenge = ref<any>(null)
 const language = ref<'python3' | 'cpp17'>('python3')
 const code = ref('')
+const runInput = ref('')
+const expectedOutput = ref('')
+const runResult = ref<RunResult | null>(null)
+const running = ref(false)
 const submitting = ref(false)
 const currentTime = ref<string | null>(null)
 const myAc = ref(false)
@@ -214,29 +277,42 @@ int main() {
 }
 `
 
-watch(language, lang => {
-  const isDefaultOrEmpty = code.value.trim() === '' || code.value === PYTHON_TEMPLATE || code.value === CPP_TEMPLATE
-  if (!isDefaultOrEmpty) return
-  code.value = lang === 'python3' ? PYTHON_TEMPLATE : CPP_TEMPLATE
-}, { immediate: false })
+watch(
+  language,
+  (lang) => {
+    const isDefaultOrEmpty = code.value.trim() === '' || code.value === PYTHON_TEMPLATE || code.value === CPP_TEMPLATE
+    if (!isDefaultOrEmpty) return
+    code.value = lang === 'python3' ? PYTHON_TEMPLATE : CPP_TEMPLATE
+  },
+  { immediate: false },
+)
 
 async function loadProblem() {
   try {
     const { data } = await api.get(`/problems/${problemId}`)
     problem.value = data
 
-    const { data: tcData } = await api.get(`/problems/${problemId}/testcases`, {
+    const { data: testcaseData } = await api.get(`/problems/${problemId}/testcases`, {
       params: { is_sample: true },
     })
-    const list = Array.isArray(tcData) ? tcData : []
+    const list = Array.isArray(testcaseData) ? testcaseData : []
     samples.value = list
-      .filter((tc: any) => tc.is_sample === true || tc.input || tc.input_data)
-      .map((tc: any) => ({
-        id: tc.id,
-        input: tc.input ?? tc.input_data ?? '',
-        output: tc.output ?? tc.expected_output ?? '',
+      .filter((testcase: any) => testcase.is_sample === true || testcase.input || testcase.input_data)
+      .map((testcase: any) => ({
+        id: testcase.id,
+        input: testcase.input ?? testcase.input_data ?? '',
+        output: testcase.output ?? testcase.expected_output ?? '',
       }))
-  } catch (e: any) {
+
+    if (samples.value.length) {
+      if (!runInput.value) {
+        runInput.value = samples.value[0].input
+      }
+      if (!expectedOutput.value) {
+        expectedOutput.value = samples.value[0].output
+      }
+    }
+  } catch (error: any) {
     ElMessage.error('加载题目失败')
   }
 }
@@ -263,7 +339,7 @@ async function loadPKChallenge() {
       opponentName.value = data.challenger_handle || `ID: ${data.challenger_member_id}`
       opponentId.value = data.challenger_member_id
     }
-  } catch (e: any) {
+  } catch (error: any) {
     ElMessage.error('加载PK信息失败')
   }
 }
@@ -284,17 +360,17 @@ async function loadSubmissions() {
     if (!myId || !opponent) return
 
     pkSubmissions.value = data
-      .filter((s: any) => {
-        if (!s.handle) return false
-        if (s.handle !== myId && s.handle !== opponent) return false
-        if (!s.created_at) return false
-        const submitTime = new Date(s.created_at + 'Z').getTime()
+      .filter((submission: any) => {
+        if (!submission.handle) return false
+        if (submission.handle !== myId && submission.handle !== opponent) return false
+        if (!submission.created_at) return false
+        const submitTime = new Date(submission.created_at + 'Z').getTime()
         return submitTime >= pkStartTime
       })
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-    myAc.value = pkSubmissions.value.some((s: any) => s.handle === myId && s.verdict === 'AC')
-    opponentAc.value = pkSubmissions.value.some((s: any) => s.handle === opponent && s.verdict === 'AC')
+    myAc.value = pkSubmissions.value.some((submission: any) => submission.handle === myId && submission.verdict === 'AC')
+    opponentAc.value = pkSubmissions.value.some((submission: any) => submission.handle === opponent && submission.verdict === 'AC')
 
     if (!pkResult.value) {
       if (myAc.value) {
@@ -303,10 +379,36 @@ async function loadSubmissions() {
         pkResult.value = { win: false, message: '对手已 AC，你输了', lose: true }
       }
     }
-  } catch (e: any) {
-    console.error('加载提交记录失败', e)
+  } catch (error: any) {
+    console.error('加载提交记录失败', error)
   } finally {
     loadingSubs.value = false
+  }
+}
+
+async function onRun() {
+  if (!code.value.trim()) {
+    ElMessage.warning('代码不能为空')
+    return
+  }
+
+  running.value = true
+  try {
+    const { data } = await api.post<RunResult>(`/problems/${problemId}/run`, {
+      language: language.value,
+      code: code.value,
+      input: runInput.value,
+    })
+    runResult.value = data
+    if (data.verdict === 'OK') {
+      ElMessage.success('本地运行完成')
+    } else {
+      ElMessage.warning(data.message || `运行结束：${data.verdict}`)
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.detail || '运行失败')
+  } finally {
+    running.value = false
   }
 }
 
@@ -334,8 +436,8 @@ async function onSubmit() {
       code: code.value,
     })
     ElMessage.success('提交成功，评测中...')
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || '提交失败')
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.detail || '提交失败')
   } finally {
     submitting.value = false
   }
@@ -362,8 +464,8 @@ async function pollStatus() {
         ElMessageBox.alert('平局！', 'PK 结束', { confirmButtonText: '确定', type: 'info' })
       }
     }
-  } catch (e: any) {
-    console.error('轮询失败', e)
+  } catch (error: any) {
+    console.error('轮询失败', error)
   }
 }
 
@@ -426,10 +528,89 @@ function getVerdictType(verdict: string | null) {
   return map[verdict] || 'info'
 }
 
+function getRunVerdictType(verdict: string): 'success' | 'warning' | 'danger' | 'info' {
+  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
+    AC: 'success',
+    WA: 'danger',
+    OK: 'success',
+    CE: 'info',
+    RE: 'danger',
+    TLE: 'warning',
+    SE: 'danger',
+    PENDING: 'info',
+  }
+  return map[verdict] || 'info'
+}
+
 function formatSubmitTime(timeStr: string) {
   if (!timeStr) return '-'
   const date = new Date(timeStr + 'Z')
   return date.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+function displayCombinedRunText(result: RunResult): string {
+  const stdout = result.stdout || ''
+  const stderr = result.stderr || ''
+  if (stdout && stderr) {
+    return `${stdout}
+
+[stderr]
+${stderr}`
+  }
+  const merged = stdout || stderr
+  return merged.length ? merged : '（空）'
+}
+
+function displayExpectedText(value: string): string {
+  return value && value.length ? value : '（空）'
+}
+
+function normalizeOutput(value: string): string {
+  const lines = value
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map(line => line.replace(/\s+$/g, ''))
+  while (lines.length && lines[lines.length - 1] === '') {
+    lines.pop()
+  }
+  return lines.join('\n')
+}
+
+const compareStatus = computed(() => {
+  if (!runResult.value || !expectedOutput.value.trim().length) return null
+  const matched = normalizeOutput(runResult.value.stdout || '') === normalizeOutput(expectedOutput.value)
+  return { matched }
+})
+
+const ojRunStatus = computed(() => {
+  if (!runResult.value) {
+    return { code: 'PENDING', label: 'Pending' }
+  }
+
+  if (runResult.value.verdict !== 'OK') {
+    const code = runResult.value.verdict
+    const labels: Record<string, string> = {
+      CE: 'Compile Error',
+      RE: 'Runtime Error',
+      TLE: 'Time Limit Exceeded',
+      SE: 'System Error',
+    }
+    return { code, label: labels[code] || code }
+  }
+
+  if (compareStatus.value) {
+    return compareStatus.value.matched
+      ? { code: 'AC', label: 'Accepted' }
+      : { code: 'WA', label: 'Wrong Answer' }
+  }
+
+  return { code: 'OK', label: 'Ran Successfully' }
+})
+
+function displayNumber(value: number | null): string {
+  if (value === null || value === undefined) return '--'
+  return String(value)
 }
 
 onMounted(async () => {
@@ -507,11 +688,13 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
-.card-header {
+.card-header,
+.run-meta {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .editor-title {
@@ -560,7 +743,8 @@ onBeforeUnmount(() => {
   margin-bottom: 6px;
 }
 
-.sample-block pre {
+.sample-block pre,
+.run-pre {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 12px;
@@ -577,6 +761,28 @@ onBeforeUnmount(() => {
   min-height: 370px;
   background: rgba(250, 252, 255, 0.92) !important;
 }
+
+.run-message {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(246, 249, 251, 0.84);
+  color: #4b5d72;
+  font-size: 12px;
+}
+
+.run-block + .run-block {
+  margin-top: 12px;
+}
+
+.run-pre {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(246, 249, 251, 0.84);
+  border: 1px solid rgba(224, 229, 234, 0.88);
+  min-height: 72px;
+}
+
 
 .pk-status {
   display: flex;

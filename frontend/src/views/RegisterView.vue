@@ -1,7 +1,7 @@
 <template>
   <div>
     <h2 class="heading">注册新账号</h2>
-    <p class="subheading">创建一个学生账号，后续可由管理员升级为管理员权限。</p>
+    <p class="subheading">创建账号后即可开始训练、参赛和提交代码。</p>
 
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="form">
       <el-form-item label="用户名" prop="username">
