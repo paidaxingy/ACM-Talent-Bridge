@@ -31,9 +31,12 @@ services:
     depends_on:
       - mysql
       - redis
+    user: "0:0"
     ports:
       - "8000:8000"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - judge_workspace:/judge_workspace
       - ./backend/resumes:/app/resumes
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

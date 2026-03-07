@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import get_current_user
 from app.models.contest import Contest
 from app.models.member import Member
 from app.models.problem import Problem
@@ -149,9 +149,7 @@ def list_submissions(
 ):
     stmt = select(Submission)
 
-    # Security: students can ONLY view their own submissions (even if in the same team).
-    if user.role != "admin":
-        stmt = stmt.where(Submission.user_id == user.id)
+    stmt = stmt.where(Submission.user_id == user.id)
 
     if team_id is not None:
         stmt = stmt.where(Submission.team_id == team_id)
@@ -187,34 +185,8 @@ def get_submission(
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
 
-    if user.role != "admin" and sub.user_id != user.id:
+    if sub.user_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    return sub
-
-
-@router.post("/{submission_id}/rejudge", response_model=SubmissionOut)
-def rejudge(
-    submission_id: int,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
-):
-    sub = db.get(Submission, submission_id)
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
-
-    sub.status = "pending"
-    sub.verdict = None
-    sub.time_ms = None
-    sub.memory_kb = None
-    sub.message = None
-    sub.judged_at = None
-    db.commit()
-    db.refresh(sub)
-
-    async_result = judge_submission.delay(sub.id)
-    sub.judge_task_id = async_result.id
-    db.commit()
-    db.refresh(sub)
     return sub
 

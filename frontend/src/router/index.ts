@@ -8,7 +8,6 @@ import PKChallengeView from '../views/PKChallengeView.vue'
 import PKProblemView from '../views/PKProblemView.vue'
 import ProblemsView from '../views/ProblemsView.vue'
 import ContestsView from '../views/ContestsView.vue'
-import SubmissionsView from '../views/SubmissionsView.vue'
 import ExternalContestsView from '../views/ExternalContestsView.vue'
 import AIInterviewView from '../views/AIInterviewView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -91,11 +90,6 @@ const routes: RouteRecordRaw[] = [
   },
 
   // 管理端：暂时保留原有 CRUD 路由，整体收纳到 /admin/*
-  {
-    path: '/admin/submissions',
-    component: SubmissionsView,
-    meta: { requiresAuth: true, adminOnly: true },
-  },
   {
     path: '/admin/users',
     component: UsersView,

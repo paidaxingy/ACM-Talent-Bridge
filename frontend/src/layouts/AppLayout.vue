@@ -20,7 +20,6 @@
             <el-menu-item index="/admin/users">用户管理</el-menu-item>
             <el-menu-item index="/admin/problems">题库管理</el-menu-item>
             <el-menu-item index="/admin/contests">竞赛管理</el-menu-item>
-            <el-menu-item index="/admin/submissions">提交管理</el-menu-item>
           </el-sub-menu>
         </el-menu>
 
