@@ -1,0 +1,11 @@
+backend/.env
+backend/resumes/
+
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+__pycache__/
+*.py[cod]
+
+node_modules/
+.DS_Store
