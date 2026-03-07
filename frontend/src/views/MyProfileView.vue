@@ -4,6 +4,7 @@
       <template #header>
         <div class="header">
           <div>
+            <div class="eyebrow">Member Portrait</div>
             <div class="title">{{ profile?.handle || '我的主页' }}</div>
             <div class="subtitle">能力画像 · 评级趋势 · 训练数据总览</div>
           </div>
@@ -12,6 +13,27 @@
       </template>
 
       <div v-if="profile">
+        <div class="hero-band">
+          <div>
+            <div class="hero-title">{{ profile.handle }} 的成长侧写</div>
+            <div class="hero-text">从训练、比赛到求职准备，把近期状态和长期潜力放在同一张画像里查看。</div>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-label">Rating</span>
+              <strong>{{ profile.rating }}</strong>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-label">PK</span>
+              <strong>{{ profile.pk_total }}</strong>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-label">AC</span>
+              <strong>{{ profile.submissions_ac }}</strong>
+            </div>
+          </div>
+        </div>
+
         <el-row :gutter="16">
           <el-col :span="8">
             <el-card class="block-card" shadow="hover">
@@ -295,27 +317,99 @@ onBeforeUnmount(() => {
   padding: 8px;
 }
 
+.main-card :deep(.el-card__header) {
+  padding-bottom: 20px;
+}
+
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a97aa;
 }
 
 .title {
-  font-weight: 600;
-  font-size: 16px;
+  margin-top: 8px;
+  font-weight: 800;
+  font-size: 24px;
+  color: #314154;
 }
 
 .subtitle {
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.8;
   color: var(--el-text-color-secondary);
+}
+
+.hero-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(111, 134, 214, 0.1), rgba(99, 183, 157, 0.12), rgba(215, 174, 106, 0.08));
+  border: 1px solid rgba(221, 228, 234, 0.84);
+}
+
+.hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #314154;
+}
+
+.hero-text {
+  margin-top: 6px;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #6e7e92;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-stat {
+  min-width: 88px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(221, 228, 234, 0.84);
+  text-align: center;
+}
+
+.hero-stat strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 20px;
+  color: #314154;
+}
+
+.hero-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8795a8;
 }
 
 .block-card {
   margin-bottom: 16px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  border-radius: 8px;
+  border-radius: 16px;
 }
 
 .block-card:hover {
@@ -323,10 +417,10 @@ onBeforeUnmount(() => {
 }
 
 .block-title {
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 12px;
   font-size: 15px;
-  color: #303133;
+  color: #314154;
 }
 
 .metric {
@@ -351,6 +445,10 @@ onBeforeUnmount(() => {
   margin-top: 12px;
 }
 
+.resume-section :deep(.el-upload__tip) {
+  color: var(--el-text-color-secondary) !important;
+}
+
 .persona-text {
   line-height: 1.8;
   color: var(--el-text-color-regular);
@@ -362,5 +460,12 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
-</style>
 
+@media (max-width: 900px) {
+  .hero-band,
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+</style>

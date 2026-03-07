@@ -1,77 +1,80 @@
 <template>
   <div class="page">
-    <el-card>
-    <template #header>
-      <div class="header">
-        <div>
-          <div class="title">我的提交</div>
-          <div class="subtitle">按竞赛 / 题目 / 状态快速筛选最近的评测记录。</div>
+    <el-card class="page-card">
+      <template #header>
+        <div class="header">
+          <div>
+            <div class="eyebrow">Submission Timeline</div>
+            <div class="title">我的提交</div>
+            <div class="subtitle">按竞赛、题目和状态快速筛选最近评测记录，点击任意一行可查看提交代码。</div>
+          </div>
+          <div class="actions-panel">
+            <div class="actions">
+              <el-input
+                v-model="filters.contestId"
+                placeholder="竞赛 ID（可选）"
+                size="small"
+                clearable
+                class="filter-control"
+              />
+              <el-input
+                v-model="filters.problemId"
+                placeholder="题目 ID（可选）"
+                size="small"
+                clearable
+                class="filter-control"
+              />
+              <el-select
+                v-model="filters.status"
+                placeholder="状态"
+                size="small"
+                clearable
+                class="status-control"
+              >
+                <el-option label="全部状态" value="" />
+                <el-option label="评测中" value="pending" />
+                <el-option label="完成" value="done" />
+              </el-select>
+              <el-button size="small" type="primary" :loading="loading" @click="load">
+                刷新
+              </el-button>
+            </div>
+          </div>
         </div>
-        <div class="actions">
-          <el-input
-            v-model="filters.contestId"
-            placeholder="竞赛 ID（可选）"
-            size="small"
-            style="width: 160px"
-            clearable
-          />
-          <el-input
-            v-model="filters.problemId"
-            placeholder="题目 ID（可选）"
-            size="small"
-            style="width: 160px; margin-left: 8px"
-            clearable
-          />
-          <el-select
-            v-model="filters.status"
-            placeholder="状态"
-            size="small"
-            style="width: 140px; margin-left: 8px"
-            clearable
-          >
-            <el-option label="全部状态" value="" />
-            <el-option label="评测中" value="pending" />
-            <el-option label="完成" value="done" />
-          </el-select>
-          <el-button size="small" type="primary" :loading="loading" style="margin-left: 8px" @click="load">
-            刷新
-          </el-button>
-        </div>
+      </template>
+
+      <el-table :data="rows" size="small" style="width: 100%" @row-click="onRowClick">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="contest_id" label="Contest" width="90" />
+        <el-table-column prop="problem_id" label="Problem" width="90" />
+        <el-table-column prop="language" label="语言" width="90" />
+        <el-table-column prop="status" label="状态" width="110" />
+        <el-table-column prop="verdict" label="Verdict" width="100" />
+        <el-table-column label="耗时(ms)" width="100">
+          <template #default="{ row }">
+            {{ displayNumber(row.time_ms) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="内存(KB)" width="110">
+          <template #default="{ row }">
+            {{ displayNumber(row.memory_kb) }}
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div v-if="!rows.length && !loading" class="empty">
+        暂无提交记录，去任意题面页写一发代码试试吧～
       </div>
-    </template>
-
-    <el-table :data="rows" size="small" style="width: 100%" @row-click="onRowClick">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="contest_id" label="Contest" width="90" />
-      <el-table-column prop="problem_id" label="Problem" width="90" />
-      <el-table-column prop="language" label="语言" width="90" />
-      <el-table-column prop="status" label="状态" width="110" />
-      <el-table-column prop="verdict" label="Verdict" width="100" />
-      <el-table-column label="耗时(ms)" width="100">
-        <template #default="{ row }">
-          {{ displayNumber(row.time_ms) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="内存(KB)" width="110">
-        <template #default="{ row }">
-          {{ displayNumber(row.memory_kb) }}
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="!rows.length && !loading" class="empty">
-      暂无提交记录，去任意题面页写一发代码试试吧～
-    </div>
     </el-card>
 
     <el-dialog v-model="codeDialogVisible" title="提交详情" width="720px">
-      <div v-if="selectedSubmission">
+      <div v-if="selectedSubmission" class="dialog-body">
         <div class="meta-line">
           <el-tag size="small">#{{ selectedSubmission.id }}</el-tag>
-          <span style="margin-left:8px">语言：{{ selectedSubmission.language }}</span>
-          <span style="margin-left:12px">Verdict：{{ selectedSubmission.verdict || '-' }}</span>
-          <span style="margin-left:12px">耗时：{{ displayNumber(selectedSubmission.time_ms) }} ms</span>
-          <span style="margin-left:12px">内存：{{ displayNumber(selectedSubmission.memory_kb) }} KB</span>
+          <span>语言：{{ selectedSubmission.language }}</span>
+          <span>Verdict：{{ selectedSubmission.verdict || '-' }}</span>
+          <span>耗时：{{ displayNumber(selectedSubmission.time_ms) }} ms</span>
+          <span>内存：{{ displayNumber(selectedSubmission.memory_kb) }} KB</span>
         </div>
         <el-input v-model="selectedSubmission.code" type="textarea" :rows="16" readonly class="code-view" />
       </div>
@@ -145,44 +148,108 @@ load()
   width: 100%;
 }
 
+.page-card :deep(.el-card__header) {
+  padding-bottom: 20px;
+}
+
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a97aa;
+}
+
 .title {
-  font-weight: 600;
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #314154;
 }
 
 .subtitle {
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 8px;
+  max-width: 560px;
+  font-size: 14px;
+  line-height: 1.8;
   color: var(--el-text-color-secondary);
+}
+
+.actions-panel {
+  padding: 12px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(111, 134, 214, 0.08), rgba(99, 183, 157, 0.08));
+  border: 1px solid rgba(220, 227, 233, 0.84);
 }
 
 .actions {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.filter-control {
+  width: 160px;
+}
+
+.status-control {
+  width: 140px;
 }
 
 .empty {
-  padding: 24px;
+  padding: 28px;
   text-align: center;
   color: var(--el-text-color-secondary);
 }
 
+.dialog-body {
+  display: grid;
+  gap: 14px;
+}
+
 .meta-line {
-  margin-bottom: 8px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(111, 134, 214, 0.08), rgba(215, 174, 106, 0.08));
+  color: #516277;
+}
+
+.code-view :deep(.el-textarea__inner) {
+  min-height: 360px;
+  background: rgba(250, 252, 255, 0.88) !important;
 }
 
 .code-view :deep(textarea) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
-</style>
 
+@media (max-width: 900px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .actions-panel {
+    width: 100%;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .filter-control,
+  .status-control {
+    width: 100%;
+  }
+}
+</style>

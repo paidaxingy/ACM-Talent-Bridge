@@ -96,35 +96,44 @@ const onSubmit = () => {
 
 <style scoped>
 .heading {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 4px;
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #314154;
 }
 
 .subheading {
-  font-size: 13px;
-  color: #9ca3af;
-  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #738297;
+  margin-bottom: 24px;
 }
 
 .form :deep(.el-form-item__label) {
-  color: #e5e7eb;
+  color: #5c6d82;
+  font-weight: 600;
+}
+
+.form :deep(.el-form-item) {
+  margin-bottom: 22px;
 }
 
 .submit {
   width: 100%;
+  min-height: 44px;
 }
 
 .footer {
-  margin-top: 12px;
+  margin-top: 14px;
   font-size: 13px;
-  color: #9ca3af;
+  color: #7d8ba0;
   text-align: center;
 }
 
 .link {
-  color: #38bdf8;
+  color: #5b76cb;
   text-decoration: none;
+  font-weight: 600;
 }
 
 .link:hover {
@@ -133,6 +142,14 @@ const onSubmit = () => {
 
 .eye {
   cursor: pointer;
+  color: #8a96aa;
+}
+
+.form :deep(.el-input__inner) {
+  color: #324255;
+}
+
+.form :deep(.el-input__inner::placeholder) {
+  color: #a0aab8;
 }
 </style>
-

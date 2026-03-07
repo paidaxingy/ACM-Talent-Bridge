@@ -1,17 +1,20 @@
 <template>
   <div class="pk-problem-page">
-    <div class="header">
+    <div class="hero-card">
       <el-page-header @back="goBack">
         <template #content>
-          <span class="title">PK 比赛 - {{ problem?.problem_title || '加载中...' }}</span>
+          <div>
+            <div class="eyebrow">PK Match</div>
+            <span class="title">{{ problem?.problem_title || '加载中...' }}</span>
+          </div>
         </template>
         <template #extra>
-          <el-tag v-if="pkChallenge" :type="getStatusType(pkChallenge.status)" size="large">
-            {{ getStatusText(pkChallenge.status) }}
-          </el-tag>
-          <span v-if="pkChallenge" class="opponent">
-            对手: {{ opponentName }}
-          </span>
+          <div class="hero-extra">
+            <el-tag v-if="pkChallenge" :type="getStatusType(pkChallenge.status)" size="large">
+              {{ getStatusText(pkChallenge.status) }}
+            </el-tag>
+            <span v-if="pkChallenge" class="opponent">对手: {{ opponentName }}</span>
+          </div>
         </template>
       </el-page-header>
     </div>
@@ -38,13 +41,13 @@
 
             <h3 class="section-title" v-if="samples.length">样例</h3>
             <el-row v-for="s in samples" :key="s.id" :gutter="12" class="sample">
-              <el-col :span="12">
+              <el-col :xs="24" :md="12">
                 <div class="sample-block">
                   <div class="sample-label">样例输入</div>
                   <pre>{{ s.input }}</pre>
                 </div>
               </el-col>
-              <el-col :span="12">
+              <el-col :xs="24" :md="12">
                 <div class="sample-block">
                   <div class="sample-label">样例输出</div>
                   <pre>{{ s.output }}</pre>
@@ -59,9 +62,12 @@
       <div class="right">
         <el-card class="editor-card">
           <template #header>
-            <div class="header">
-              <div class="title">代码编辑</div>
-              <el-select v-model="language" style="width: 140px" size="small">
+            <div class="card-header">
+              <div>
+                <div class="editor-title">代码编辑</div>
+                <div class="editor-subtitle">支持 Python 3 / C++ 17，提交后会自动刷新 PK 状态。</div>
+              </div>
+              <el-select v-model="language" class="language-select" size="small">
                 <el-option label="Python 3" value="python3" />
                 <el-option label="C++ 17" value="cpp17" />
               </el-select>
@@ -86,7 +92,7 @@
           </el-form>
         </el-card>
 
-        <el-card class="status-card" style="margin-top: 12px">
+        <el-card class="status-card">
           <template #header>
             <div class="card-header">
               <span>PK 状态</span>
@@ -95,18 +101,18 @@
           </template>
           <div class="pk-status">
             <div class="player">
-              <span class="name">{{ myHandle }}</span>
+              <span class="name">{{ myHandle || '我' }}</span>
               <el-tag v-if="myAc" type="success" size="small">已 AC</el-tag>
             </div>
             <div class="vs">VS</div>
             <div class="player">
-              <span class="name">{{ opponentName }}</span>
+              <span class="name">{{ opponentName || '对手' }}</span>
               <el-tag v-if="opponentAc" type="success" size="small">已 AC</el-tag>
             </div>
           </div>
         </el-card>
 
-        <el-card class="submissions-card" style="margin-top: 12px">
+        <el-card class="submissions-card">
           <template #header>
             <div class="card-header">
               <span>实时提交记录</span>
@@ -114,26 +120,26 @@
             </div>
           </template>
           <el-table :data="pkSubmissions" size="small" style="width: 100%">
-            <el-table-column label="选手" width="100">
+            <el-table-column label="选手" width="110">
               <template #default="{ row }">
                 <el-tag type="primary" size="small">
                   {{ getMemberName(row.handle) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="结果" width="80">
+            <el-table-column label="结果" width="90">
               <template #default="{ row }">
                 <el-tag :type="getVerdictType(row.verdict)" size="small">
                   {{ row.verdict || row.status }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="语言" width="80">
+            <el-table-column label="语言" width="90">
               <template #default="{ row }">
                 {{ row.language }}
               </template>
             </el-table-column>
-            <el-table-column label="耗时" width="80">
+            <el-table-column label="耗时" width="90">
               <template #default="{ row }">
                 {{ row.time_ms ? `${row.time_ms}ms` : '-' }}
               </template>
@@ -144,9 +150,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <div v-if="!pkSubmissions.length" class="empty-subs">
-            暂无提交记录
-          </div>
+          <div v-if="!pkSubmissions.length" class="empty-subs">暂无提交记录</div>
         </el-card>
       </div>
     </div>
@@ -156,6 +160,7 @@
       :icon="pkResult.win ? 'success' : 'error'"
       :title="pkResult.win ? '你赢了！' : pkResult.lose ? '你输了' : '平局'"
       :sub-title="pkResult.message"
+      class="result-card"
     >
       <template #extra>
         <el-button type="primary" @click="goBack">返回 PK 页面</el-button>
@@ -198,7 +203,18 @@ const myHandle = ref<string | null>(null)
 const PYTHON_TEMPLATE = `print(input())
 `
 
-watch(language, (lang, prev) => {
+const CPP_TEMPLATE = `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+  ios::sync_with_stdio(false);
+  cin.tie(nullptr);
+
+  return 0;
+}
+`
+
+watch(language, lang => {
   const isDefaultOrEmpty = code.value.trim() === '' || code.value === PYTHON_TEMPLATE || code.value === CPP_TEMPLATE
   if (!isDefaultOrEmpty) return
   code.value = lang === 'python3' ? PYTHON_TEMPLATE : CPP_TEMPLATE
@@ -258,7 +274,7 @@ async function loadSubmissions() {
     if (!pkChallenge.value || !pkChallenge.value.started_at) return
 
     const { data } = await api.get('/submissions', {
-      params: { problem_id: problemId, contest_id: null }
+      params: { problem_id: problemId, contest_id: null },
     })
 
     const opponent = opponentId.value
@@ -331,18 +347,16 @@ async function pollStatus() {
   try {
     const { data } = await api.get(`/pk/challenges/${pkChallengeId}`)
     pkChallenge.value = data
-
     currentTime.value = new Date().toISOString()
-
     await loadSubmissions()
 
     if (data.status === 'finished' && !pkResult.value) {
       if (data.winner_handle === myHandle.value) {
         pkResult.value = { win: true, message: '恭喜！你赢了！', lose: false }
-        ElMessageBox.alert('🎉 你赢得了 PK！', '胜利', { confirmButtonText: '确定', type: 'success' })
+        ElMessageBox.alert('你赢得了 PK！', '胜利', { confirmButtonText: '确定', type: 'success' })
       } else if (data.winner_handle && data.winner_handle !== myHandle.value) {
         pkResult.value = { win: false, message: `你输给了 ${opponentName.value}`, lose: true }
-        ElMessageBox.alert(`😔 你输给了 ${opponentName.value}`, '失败', { confirmButtonText: '确定', type: 'error' })
+        ElMessageBox.alert(`你输给了 ${opponentName.value}`, '失败', { confirmButtonText: '确定', type: 'error' })
       } else if (data.is_draw) {
         pkResult.value = { win: false, message: '平局', lose: false }
         ElMessageBox.alert('平局！', 'PK 结束', { confirmButtonText: '确定', type: 'info' })
@@ -401,13 +415,13 @@ function getMemberName(handle: string) {
 function getVerdictType(verdict: string | null) {
   if (!verdict) return 'info'
   const map: Record<string, string> = {
-    'AC': 'success',
-    'WA': 'danger',
-    'TLE': 'warning',
-    'MLE': 'warning',
-    'RE': 'warning',
-    'CE': 'info',
-    'PE': 'warning',
+    AC: 'success',
+    WA: 'danger',
+    TLE: 'warning',
+    MLE: 'warning',
+    RE: 'warning',
+    CE: 'info',
+    PE: 'warning',
   }
   return map[verdict] || 'info'
 }
@@ -421,7 +435,7 @@ function formatSubmitTime(timeStr: string) {
 onMounted(async () => {
   code.value = PYTHON_TEMPLATE
   currentTime.value = new Date().toISOString()
-  
+
   await loadProblem()
   await loadPKChallenge()
   await loadSubmissions()
@@ -439,53 +453,93 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pk-problem-page {
-  min-height: 100vh;
-  background: #f5f7fa;
-  padding: 16px;
+  display: grid;
+  gap: 18px;
 }
 
-.header {
-  background: white;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+.hero-card {
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(111, 134, 214, 0.11), rgba(99, 183, 157, 0.12), rgba(215, 174, 106, 0.08));
+  border: 1px solid rgba(220, 227, 233, 0.86);
 }
 
-.header .title {
-  font-size: 18px;
-  font-weight: 600;
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a97aa;
 }
 
-.header .opponent {
-  margin-left: 16px;
-  color: #666;
+.title {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #314154;
+}
+
+.hero-extra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.opponent {
+  color: #68788d;
 }
 
 .content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
   gap: 16px;
 }
 
-.left, .right {
+.left,
+.right {
   min-width: 0;
+}
+
+.right {
+  display: grid;
+  gap: 12px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.editor-title {
+  font-weight: 700;
+  color: #314154;
+}
+
+.editor-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.language-select {
+  width: 140px;
 }
 
 .section-title {
-  margin: 12px 0 6px;
-  font-weight: 600;
+  margin: 14px 0 8px;
+  font-weight: 700;
+  color: #314154;
 }
 
 .paragraph {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.8;
   white-space: pre-wrap;
+  color: #4b5d72;
 }
 
 .sample {
@@ -493,80 +547,103 @@ onBeforeUnmount(() => {
 }
 
 .sample-block {
-  background: #f5f7fa;
-  border-radius: 6px;
-  padding: 8px;
+  height: 100%;
+  background: rgba(246, 249, 251, 0.84);
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(224, 229, 234, 0.88);
 }
 
 .sample-label {
   font-size: 12px;
-  color: #666;
-  margin-bottom: 4px;
+  color: #7a889b;
+  margin-bottom: 6px;
 }
 
 .sample-block pre {
   margin: 0;
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 12px;
   white-space: pre-wrap;
 }
 
 .loading-text {
   font-size: 14px;
-  color: #999;
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.header .title {
-  font-weight: 600;
+  color: #8896a8;
 }
 
 .code-area :deep(textarea) {
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  min-height: 370px;
+  background: rgba(250, 252, 255, 0.92) !important;
 }
 
 .pk-status {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 16px 0;
+  gap: 14px;
+  padding: 10px 0;
 }
 
 .player {
+  min-width: 110px;
   text-align: center;
+  padding: 16px 14px;
+  border-radius: 16px;
+  background: rgba(246, 249, 251, 0.72);
+  border: 1px solid rgba(224, 229, 234, 0.88);
 }
 
 .player .name {
   display: block;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 8px;
+  color: #314154;
 }
 
 .vs {
-  font-size: 24px;
-  font-weight: bold;
-  color: #409eff;
+  font-size: 28px;
+  font-weight: 800;
+  color: #6f86d6;
 }
 
-.status-card .time {
-  font-size: 14px;
-  color: #666;
+.time {
+  font-size: 13px;
+  color: #6f7f94;
 }
 
-.submissions-card .empty-subs {
-  padding: 20px;
+.empty-subs {
+  padding: 22px;
   text-align: center;
-  color: #999;
+  color: #8896a8;
+}
+
+.result-card {
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.66);
 }
 
 @media (max-width: 960px) {
   .content {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero-extra,
+  .card-header,
+  .pk-status {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .language-select {
+    width: 100%;
+  }
+
+  .title {
+    font-size: 24px;
   }
 }
 </style>

@@ -2,22 +2,22 @@
   <div class="page">
     <div class="layout">
       <el-card class="meta-card">
-      <template #header>
-        <div class="meta-header">
-          <div>
-            <div class="contest-title">{{ contest?.name || '加载中...' }}</div>
-            <div class="contest-subtitle">
-              <el-tag :type="statusTagType(effectiveStatus)" size="small">
-                {{ statusText(effectiveStatus) }}
-              </el-tag>
-              <span v-if="contest?.start_at" class="time">
-                {{ contest?.start_at }} — {{ contest?.end_at || '未设置结束时间' }}
-              </span>
+        <template #header>
+          <div class="meta-header">
+            <div class="hero-copy">
+              <div class="eyebrow">Contest Overview</div>
+              <div class="contest-title">{{ contest?.name || '加载中...' }}</div>
+              <div class="contest-subtitle">
+                <el-tag :type="statusTagType(effectiveStatus)" size="small">
+                  {{ statusText(effectiveStatus) }}
+                </el-tag>
+                <span v-if="contest?.start_at" class="time">
+                  {{ contest?.start_at }} — {{ contest?.end_at || '未设置结束时间' }}
+                </span>
+              </div>
             </div>
-          </div>
-          <div class="meta-actions">
-            <div v-if="activeRegistration">
-              <span class="active-team">
+            <div class="meta-actions">
+              <div v-if="activeRegistration" class="active-team">
                 <template v-if="activeRegistration.type === 'team'">
                   当前参赛队伍：<strong>{{ activeRegistration.team_name || `队伍 #${activeRegistration.team_id}` }}</strong>
                   <span class="team-id">（ID: {{ activeRegistration.team_id }}）</span>
@@ -25,19 +25,24 @@
                 <template v-else>
                   当前状态：<strong>个人参赛</strong>
                 </template>
-              </span>
+              </div>
+              <el-button type="primary" size="small" :loading="registering" @click="openRegisterDialog" :disabled="!canRegister">
+                {{ registerButtonText }}
+              </el-button>
             </div>
-            <el-button type="primary" size="small" :loading="registering" @click="openRegisterDialog" :disabled="!canRegister">
-              {{ registerButtonText }}
-            </el-button>
+          </div>
+        </template>
+        <div v-if="contest" class="meta-grid">
+          <div class="meta-panel">
+            <div class="meta-label">比赛 ID</div>
+            <div class="meta-value">#{{ contest.id }}</div>
+          </div>
+          <div class="meta-panel meta-panel-wide">
+            <div class="meta-label">比赛简介</div>
+            <div class="meta-text">{{ contest.description || '暂无描述' }}</div>
           </div>
         </div>
-      </template>
-      <div v-if="contest">
-        <p class="meta-row"><strong>比赛 ID：</strong>{{ contest.id }}</p>
-        <p class="meta-row"><strong>简介：</strong>{{ contest.description || '暂无描述' }}</p>
-      </div>
-      <div v-else class="loading-text">正在加载竞赛信息...</div>
+        <div v-else class="loading-text">正在加载竞赛信息...</div>
       </el-card>
 
       <el-card class="main-card">
@@ -79,8 +84,8 @@
         <el-radio label="individual">个人参赛</el-radio>
         <el-radio label="team">团队参赛</el-radio>
       </el-radio-group>
-      <div v-if="registerType === 'team'" style="margin-top: 16px">
-        <div v-if="!myTeams.length" style="font-size: 13px; color: var(--el-text-color-secondary)">
+      <div v-if="registerType === 'team'" class="register-panel">
+        <div v-if="!myTeams.length" class="register-tip">
           你当前还没有队伍，请先在"我的队伍"页创建或加入队伍后再来报名。
         </div>
         <el-radio-group v-else v-model="selectedTeamId" class="team-radio-group">
@@ -89,7 +94,7 @@
           </el-radio>
         </el-radio-group>
       </div>
-      <div v-else style="margin-top: 16px; font-size: 13px; color: var(--el-text-color-secondary)">
+      <div v-else class="register-tip register-panel">
         个人参赛无需组队，可直接参加比赛。
       </div>
       <template #footer>
@@ -168,10 +173,10 @@ let scoreboardTimer: number | null = null
 
 const effectiveStatus = computed<ContestDetail['contest_status'] | undefined>(() => {
   if (!contest.value) return undefined
-  const raw = contest.value.contest_status || contest.value.status
+  const raw = (contest.value.contest_status || contest.value.status) as string | undefined
   if (raw === 'finished') return 'ended'
   if (raw === 'registration') return 'published'
-  return raw
+  return raw as ContestDetail['contest_status'] | undefined
 })
 
 const canRegister = computed(() => {
@@ -366,29 +371,57 @@ onBeforeUnmount(() => {
 .layout {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .meta-card {
   margin-bottom: 4px;
+  overflow: hidden;
+}
+
+.meta-card :deep(.el-card__header) {
+  border-bottom: none !important;
+  background:
+    linear-gradient(135deg, rgba(111, 134, 214, 0.13), rgba(99, 183, 157, 0.1)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 250, 246, 0.7));
 }
 
 .meta-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 18px;
+}
+
+.hero-copy {
+  max-width: 700px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8795a9;
 }
 
 .meta-actions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 10px;
+  min-width: 220px;
 }
 
 .active-team {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
   font-size: 12px;
+  line-height: 1.7;
   color: var(--el-text-color-secondary);
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(224, 229, 234, 0.85);
 }
 
 .active-team .team-id {
@@ -396,16 +429,20 @@ onBeforeUnmount(() => {
 }
 
 .contest-title {
-  font-size: 18px;
-  font-weight: 700;
+  margin-top: 8px;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #304155;
 }
 
 .contest-subtitle {
-  margin-top: 6px;
+  margin-top: 12px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--el-text-color-secondary);
 }
 
@@ -413,9 +450,41 @@ onBeforeUnmount(() => {
   opacity: 0.9;
 }
 
-.meta-row {
-  margin: 4px 0;
-  font-size: 13px;
+.meta-grid {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.meta-panel {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(225, 231, 236, 0.9);
+}
+
+.meta-panel-wide {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.64), rgba(250, 247, 242, 0.82));
+}
+
+.meta-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8795a8;
+}
+
+.meta-value {
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #304155;
+}
+
+.meta-text {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: #516277;
 }
 
 .main-card {
@@ -423,7 +492,7 @@ onBeforeUnmount(() => {
 }
 
 .empty {
-  padding: 16px;
+  padding: 22px;
   text-align: center;
   color: var(--el-text-color-secondary);
 }
@@ -432,5 +501,49 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: var(--el-text-color-secondary);
 }
-</style>
 
+.register-panel {
+  margin-top: 16px;
+}
+
+.register-tip {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--el-text-color-secondary);
+}
+
+.team-radio-group {
+  display: grid;
+  gap: 10px;
+}
+
+.team-radio-group :deep(.el-radio) {
+  margin-right: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(246, 249, 251, 0.74);
+  border: 1px solid rgba(224, 229, 234, 0.88);
+}
+
+@media (max-width: 900px) {
+  .meta-header {
+    flex-direction: column;
+  }
+
+  .meta-actions {
+    width: 100%;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .contest-title {
+    font-size: 24px;
+  }
+}
+</style>
